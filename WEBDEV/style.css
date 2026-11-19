@@ -1,0 +1,605 @@
+/* ═══════════════════════════════════════════════════════════
+   style.css — Gesture-Controlled Presentation Deck
+   Dark-themed, fullscreen, responsive layout
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── 1. CSS Custom Properties (Design Tokens) ───────────── */
+:root {
+  --bg-primary:    #0d1117;   /* deep navy-black background     */
+  --bg-secondary:  #161b22;   /* slightly lighter card surface  */
+  --bg-card:       #1c2333;   /* card and slide background      */
+  --accent-blue:   #4fc3f7;   /* primary accent (light blue)    */
+  --accent-pink:   #f06292;   /* secondary accent (landmark dots)*/
+  --accent-green:  #69f0ae;   /* success / active state         */
+  --text-primary:  #e6edf3;   /* main readable text             */
+  --text-muted:    #8b949e;   /* secondary / helper text        */
+  --border-color:  #30363d;   /* subtle borders                 */
+  --slide-radius:  16px;
+  --transition-speed: 0.6s;
+  --font-main: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* ── 2. Reset & Base ─────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;        /* no scroll bars — it's a deck, not a page */
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-main);
+  font-size: 16px;
+}
+
+/* ── 3. Gesture Status Badge ─────────────────────────────── */
+#gesture-badge {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  background: rgba(13, 17, 23, 0.85);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: border-color 0.3s, color 0.3s;
+  pointer-events: none;   /* don't block clicks on slides */
+}
+
+/* When a gesture is active, the badge glows */
+#gesture-badge.active {
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+  box-shadow: 0 0 12px rgba(105, 240, 174, 0.35);
+}
+
+#gesture-icon {
+  font-size: 1.1rem;
+}
+
+/* ── 4. Slide Deck Container ─────────────────────────────── */
+#slide-deck {
+  position: fixed;
+  inset: 0;              /* top/right/bottom/left = 0 */
+  bottom: 72px;          /* leave room for the controls footer */
+}
+
+/* ── 5. Individual Slides ─────────────────────────────────── */
+.slide {
+  /*
+    Every slide occupies the full deck area.
+    They stack on top of each other using absolute positioning.
+    Visibility is toggled with opacity + transform so CSS transitions work.
+  */
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 60px;
+  opacity: 0;
+  transform: translateX(60px);
+  pointer-events: none;
+  transition:
+    opacity var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1),
+    transform var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* The active slide is fully visible */
+.slide.active {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+/* Slide that just left (exits to the left) */
+.slide.exiting {
+  opacity: 0;
+  transform: translateX(-60px);
+}
+
+/* ── 6. Slide Content Area ───────────────────────────────── */
+.slide-content {
+  max-width: 900px;
+  width: 100%;
+  text-align: center;
+}
+
+/* Small tag above the heading (e.g., "01 / Introduction") */
+.slide-tag {
+  display: inline-block;
+  padding: 4px 14px;
+  border: 1px solid var(--accent-blue);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: var(--accent-blue);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+}
+
+.slide-content h1 {
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin-bottom: 20px;
+  background: linear-gradient(135deg, var(--text-primary) 40%, var(--accent-blue));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.subtitle {
+  font-size: 1.1rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  max-width: 640px;
+  margin: 0 auto 32px;
+}
+
+/* ── 7. Slide 1 — Feature List ───────────────────────────── */
+.feature-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0 auto 28px;
+  max-width: 400px;
+}
+
+.feature-list li {
+  padding: 12px 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.feature-list li:hover {
+  border-color: var(--accent-blue);
+}
+
+.hint {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+/* ── 8. Slide 2 — Card Grid ──────────────────────────────── */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 24px;
+  text-align: left;
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--slide-radius);
+  padding: 24px;
+  transition: border-color 0.25s, transform 0.25s;
+}
+
+.card:hover {
+  border-color: var(--accent-blue);
+  transform: translateY(-3px);
+}
+
+.card-icon {
+  font-size: 1.8rem;
+  margin-bottom: 12px;
+}
+
+.card h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--accent-blue);
+}
+
+.card p {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+/* ── 9. Slide 3 — Landmark Diagram ──────────────────────── */
+.slide-content--image .landmark-diagram {
+  margin: 24px auto 0;
+  max-width: 320px;
+}
+
+.slide-content--image svg {
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 4px 24px rgba(79, 195, 247, 0.2));
+}
+
+.landmark-legend {
+  margin-top: 16px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.dot.pink { background: var(--accent-pink); }
+.dot.blue { background: var(--accent-blue); }
+
+/* ── 10. Slide 4 — Video Slide ───────────────────────────── */
+.slide-content--video .video-wrapper {
+  position: relative;
+  display: inline-block;
+  margin-top: 20px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid var(--border-color);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+  transition: border-color 0.3s;
+}
+
+.slide-content--video .video-wrapper:hover {
+  border-color: var(--accent-blue);
+}
+
+.slide-content--video video {
+  display: block;
+  max-width: 560px;
+  width: 90vw;
+  height: auto;
+  border-radius: 10px;
+}
+
+/* Play/Pause icon overlay in the center of the video */
+#video-overlay-icon {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 10px;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+
+/* Hide the overlay once video is playing */
+#video-overlay-icon.hidden {
+  opacity: 0;
+}
+
+/* ── 11. Bottom Controls Footer ──────────────────────────── */
+#controls {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  background: rgba(13, 17, 23, 0.9);
+  border-top: 1px solid var(--border-color);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  z-index: 50;
+}
+
+#slide-counter {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 90px;
+}
+
+#btn-group {
+  display: flex;
+  gap: 10px;
+}
+
+/* ── 12. Control Buttons ─────────────────────────────────── */
+.ctrl-btn {
+  padding: 9px 20px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  font-family: var(--font-main);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.1s;
+}
+
+.ctrl-btn:hover {
+  background: #2d3748;
+  border-color: var(--accent-blue);
+}
+
+.ctrl-btn:active {
+  transform: scale(0.96);
+}
+
+/* Accent variant for the Play/Pause button */
+.ctrl-btn.accent {
+  background: rgba(79, 195, 247, 0.12);
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+.ctrl-btn.accent:hover {
+  background: rgba(79, 195, 247, 0.22);
+}
+
+/* Camera button — highlighted in green when active */
+.camera-btn {
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+  background: rgba(105, 240, 174, 0.1);
+}
+
+.camera-btn:hover {
+  background: rgba(105, 240, 174, 0.2);
+}
+
+.camera-btn.recording {
+  background: rgba(240, 98, 146, 0.15);
+  border-color: var(--accent-pink);
+  color: var(--accent-pink);
+  animation: pulse-border 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse-border {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(240, 98, 146, 0.4); }
+  50%       { box-shadow: 0 0 0 6px rgba(240, 98, 146, 0); }
+}
+
+/* ── 13. Webcam Preview Box ──────────────────────────────── */
+#cam-preview {
+  position: fixed;
+  bottom: 84px;         /* sit just above the controls bar    */
+  right: 20px;
+  width: 200px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid var(--accent-green);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(105, 240, 174, 0.2);
+  z-index: 60;
+  background: #000;
+  transition: opacity 0.4s;
+}
+
+#cam-preview.hidden {
+  opacity: 0;
+  visibility: hidden;   /* FIX #2/#7: visibility:hidden lets the opacity
+                           transition animate properly. display:none (from the
+                           global .hidden rule) would instantly snap the element
+                           away and block the CSS transition entirely. */
+  pointer-events: none;
+}
+
+/* Small "Gesture Cam" label bar at the top of the preview */
+#cam-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.7);
+  font-size: 0.7rem;
+  color: var(--accent-green);
+  text-align: center;
+  letter-spacing: 0.05em;
+  z-index: 2;
+}
+
+/* The live webcam video element */
+#webcam {
+  display: block;
+  width: 200px;
+  height: 150px;
+  object-fit: cover;
+  /*
+    CSS horizontal flip — makes the preview act like a mirror.
+    When you raise your RIGHT hand, the preview shows it on the right.
+  */
+  transform: scaleX(-1);
+}
+
+/* The canvas for drawing hand landmarks sits exactly on top of the video */
+#landmark-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /*
+    FIX #3: DO NOT set a fixed pixel width/height here in CSS.
+    The canvas internal resolution (the .width/.height attributes) is set
+    from webcamEl.videoWidth/videoHeight in JavaScript. If the CSS size
+    differs from the attribute size, the browser scales the drawing and
+    landmark dots appear in the wrong positions.
+    We use width:100%/height:100% so it always matches the parent container
+    regardless of the camera's actual resolution.
+  */
+  width: 100%;
+  height: 100%;
+  transform: scaleX(-1);
+  pointer-events: none;
+}
+
+/* ── 14. Utility ─────────────────────────────────────────── */
+/*
+  FIX #7: The general .hidden rule uses display:none, but #cam-preview
+  needs to fade with an opacity transition. So we exclude it here and
+  handle its hidden state with visibility:hidden in its own rule above.
+*/
+.hidden:not(#cam-preview) {
+  display: none !important;
+}
+
+/* Smooth outline removal for accessibility */
+:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 3px;
+}
+
+/* ── 15. Responsive Adjustments ──────────────────────────── */
+@media (max-width: 700px) {
+  .two-col {
+    grid-template-columns: 1fr;
+  }
+
+  .slide {
+    padding: 24px 20px;
+  }
+
+  #controls {
+    padding: 0 16px;
+    flex-wrap: wrap;
+    height: auto;
+    gap: 8px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  #btn-group {
+    flex-wrap: wrap;
+  }
+
+  #cam-preview {
+    width: 140px;
+  }
+
+  #webcam,
+  #landmark-canvas {
+    width: 140px;
+    height: 105px;
+  }
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   LOADING SCREEN OVERLAY
+   Covers the entire page until the AI model is ready.
+   script.js removes the .done class to trigger the fade-out.
+   ══════════════════════════════════════════════════════════ */
+
+#loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;              /* sits above everything else */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-primary);
+  /* Fade out when .done is added by JS */
+  transition: opacity 0.6s ease, visibility 0.6s ease;
+  opacity: 1;
+  visibility: visible;
+}
+
+/* JS adds this class when loading is complete — triggers fade-out */
+#loading-screen.done {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* The centered white card */
+#loading-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 56px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  box-shadow: 0 8px 48px rgba(0, 0, 0, 0.6);
+  max-width: 380px;
+  width: 90%;
+  text-align: center;
+}
+
+/* Animated robot/hand emoji — bounces gently */
+#loading-hand {
+  font-size: 3rem;
+  animation: loading-bounce 1.4s ease-in-out infinite;
+}
+
+@keyframes loading-bounce {
+  0%, 100% { transform: translateY(0);    }
+  50%       { transform: translateY(-10px); }
+}
+
+#loading-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+#loading-subtitle {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-top: -6px;
+}
+
+/* Progress bar track (the grey background rail) */
+#progress-track {
+  width: 100%;
+  height: 6px;
+  background: var(--border-color);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+/* Progress bar fill — width is driven by JS */
+#progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent-blue), var(--accent-green));
+  border-radius: 999px;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Percentage number shown below the bar */
+#progress-percent {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent-blue);
+  font-variant-numeric: tabular-nums;
+  margin-top: -4px;
+}
+
+/* Step description text, e.g. "Downloading AI model…" */
+#loading-status {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  min-height: 1.2em;   /* prevents layout jump when text changes */
+}

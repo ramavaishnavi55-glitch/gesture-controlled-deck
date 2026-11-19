@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gesture-Controlled Presentation Deck</title>
+  <link rel="stylesheet" href="style.css" />
+
+  <!--
+    MediaPipe Tasks Vision CDN:
+    This gives us HandLandmarker (the AI model) without any npm or backend setup.
+    It runs entirely in the browser using WebAssembly under the hood.
+  -->
+  <script type="module" src="script.js"></script>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════
+       LOADING SCREEN OVERLAY
+       Shown immediately on page load.
+       script.js drives the progress bar and
+       calls hideLoadingScreen() when the AI
+       model is fully loaded and ready.
+  ════════════════════════════════════════════ -->
+  <div id="loading-screen">
+    <div id="loading-box">
+
+      <!-- Animated hand icon -->
+      <div id="loading-hand">🤖</div>
+
+      <!-- App title -->
+      <h2 id="loading-title">Gesture Deck</h2>
+      <p id="loading-subtitle">Powered by Google MediaPipe</p>
+
+      <!-- Progress bar track + fill -->
+      <div id="progress-track">
+        <div id="progress-fill"></div>
+      </div>
+
+      <!-- Percentage number -->
+      <div id="progress-percent">0%</div>
+
+      <!-- Step-by-step status text -->
+      <p id="loading-status">Starting up…</p>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       GESTURE STATUS BADGE
+       Shows the currently detected gesture name
+       at the top of the screen in real time.
+  ════════════════════════════════════════════ -->
+  <div id="gesture-badge">
+    <span id="gesture-icon">✋</span>
+    <span id="gesture-label">No Gesture</span>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       SLIDE DECK WRAPPER
+       All 4 slides live here. Only the "active"
+       slide is visible at any time.
+  ════════════════════════════════════════════ -->
+  <main id="slide-deck">
+
+    <!-- ── SLIDE 1: Welcome / Title Slide ── -->
+    <section class="slide active" id="slide-1">
+      <div class="slide-content">
+        <div class="slide-tag">01 / Introduction</div>
+        <h1>Touchless Presentation</h1>
+        <p class="subtitle">Control this deck with your bare hands using real-time AI hand tracking powered by <strong>Google MediaPipe</strong>.</p>
+        <ul class="feature-list">
+          <li>👈 Point Left → Previous Slide</li>
+          <li>👉 Point Right → Next Slide</li>
+          <li>🖐️ Open Palm → Play / Pause Video</li>
+        </ul>
+        <p class="hint">Click <strong>"Start Camera"</strong> below to activate gesture control.</p>
+      </div>
+    </section>
+
+    <!-- ── SLIDE 2: How It Works ── -->
+    <section class="slide" id="slide-2">
+      <div class="slide-content">
+        <div class="slide-tag">02 / How It Works</div>
+        <h1>Under the Hood</h1>
+        <div class="two-col">
+          <div class="card">
+            <div class="card-icon">🤖</div>
+            <h3>AI Model</h3>
+            <p>MediaPipe Hand Landmarker detects <strong>21 key points</strong> (landmarks) on your hand in every video frame.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon">📐</div>
+            <h3>Gesture Math</h3>
+            <p>We compare the X/Y positions of fingertip landmarks to their base joints to decide if a finger is <strong>up or down</strong>.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon">⏱️</div>
+            <h3>Cooldown Timer</h3>
+            <p>A <strong>1.5-second lock</strong> prevents the same gesture from firing multiple times on a single movement.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon">🪞</div>
+            <h3>Mirror View</h3>
+            <p>The webcam feed is <strong>CSS-flipped</strong> so it feels like a mirror — left on screen = left in real life.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SLIDE 3: Image Slide ── -->
+    <section class="slide" id="slide-3">
+      <div class="slide-content slide-content--image">
+        <div class="slide-tag">03 / Hand Landmarks</div>
+        <h1>Hand Landmark Map</h1>
+        <p class="subtitle">MediaPipe returns 21 numbered points for each hand detected in the frame.</p>
+        <!-- Using a reliable public SVG diagram of the MediaPipe hand landmark model -->
+        <div class="landmark-diagram">
+          <svg viewBox="0 0 400 480" xmlns="http://www.w3.org/2000/svg" aria-label="Hand landmark diagram">
+            <!-- Palm base -->
+            <ellipse cx="200" cy="360" rx="90" ry="70" fill="#1e3a5f" stroke="#4fc3f7" stroke-width="2"/>
+            <!-- Wrist -->
+            <ellipse cx="200" cy="420" rx="55" ry="30" fill="#1e3a5f" stroke="#4fc3f7" stroke-width="2"/>
+
+            <!-- Thumb -->
+            <line x1="115" y1="340" x2="85" y2="295" stroke="#81d4fa" stroke-width="3"/>
+            <line x1="85" y1="295" x2="62" y2="250" stroke="#81d4fa" stroke-width="3"/>
+            <line x1="62" y1="250" x2="48" y2="210" stroke="#81d4fa" stroke-width="3"/>
+
+            <!-- Index finger -->
+            <line x1="148" y1="295" x2="138" y2="230" stroke="#81d4fa" stroke-width="3"/>
+            <line x1="138" y1="230" x2="132" y2="170" stroke="#81d4fa" stroke-width="3"/>
+            <line x1="132" y1="170" x2="128" y2="120" stroke="#81d4fa" stroke-width="3"/>
+            <line x1="128" y1="120" x2="125" y2="78" stroke="#81d4fa" stroke-width="3"/>
+
+            <!-- Middle finger -->
+            <line x1="192" y1="285" x2="192" y2="215" stroke="#81d4fa" stroke-width="3"/>
+            <line x1="192" y1="215" x2="192" y2="152" stroke="#81d4fa" stroke-width="3"/>
+            <line x1="192" y1="152" x2="192" y2="100" stroke="#81d4fa" stroke-width="3"/>
+            <line x1="192" y1="100" x2="192" y2="58" stroke="#81d4fa" stroke-width="3"/>
+
+            <!-- Ring finger -->
+            <line x1="236" y1="290" x2="246" y2="222" stroke="#81d4fa" stroke-width="3"/>
+            <line x1="246" y1="222" x2="252" y2="162" stroke="#81d4fa" stroke-width="3"/>
+            <line x1="252" y1="162" x2="255" y2="110" stroke="#81d4fa" stroke-width="3"/>
+            <line x1="255" y1="110" x2="258" y2="70" stroke="#81d4fa" stroke-width="3"/>
+
+            <!-- Pinky -->
+            <line x1="268" y1="310" x2="285" y2="250" stroke="#81d4fa" stroke-width="3"/>
+            <line x1="285" y1="250" x2="296" y2="202" stroke="#81d4fa" stroke-width="3"/>
+            <line x1="296" y1="202" x2="302" y2="168" stroke="#81d4fa" stroke-width="3"/>
+            <line x1="302" y1="168" x2="308" y2="140" stroke="#81d4fa" stroke-width="3"/>
+
+            <!-- Landmark dots + labels -->
+            <!-- Wrist = 0 -->
+            <circle cx="200" cy="420" r="8" fill="#f06292"/><text x="210" y="424" fill="white" font-size="11">0</text>
+            <!-- Thumb CMC=1, MCP=2, IP=3, TIP=4 -->
+            <circle cx="115" cy="340" r="7" fill="#4fc3f7"/><text x="122" y="344" fill="white" font-size="10">1</text>
+            <circle cx="85" cy="295" r="7" fill="#4fc3f7"/><text x="92" y="299" fill="white" font-size="10">2</text>
+            <circle cx="62" cy="250" r="7" fill="#4fc3f7"/><text x="69" y="254" fill="white" font-size="10">3</text>
+            <circle cx="48" cy="210" r="8" fill="#f06292"/><text x="30" y="214" fill="white" font-size="10">4 TIP</text>
+            <!-- Index MCP=5, PIP=6, DIP=7, TIP=8 -->
+            <circle cx="148" cy="295" r="7" fill="#4fc3f7"/><text x="155" y="299" fill="white" font-size="10">5</text>
+            <circle cx="138" cy="230" r="7" fill="#4fc3f7"/><text x="145" y="234" fill="white" font-size="10">6</text>
+            <circle cx="132" cy="170" r="7" fill="#4fc3f7"/><text x="139" y="174" fill="white" font-size="10">7</text>
+            <circle cx="125" cy="78" r="8" fill="#f06292"/><text x="107" y="75" fill="white" font-size="10">8 TIP</text>
+            <!-- Middle MCP=9, PIP=10, DIP=11, TIP=12 -->
+            <circle cx="192" cy="285" r="7" fill="#4fc3f7"/><text x="199" y="289" fill="white" font-size="10">9</text>
+            <circle cx="192" cy="215" r="7" fill="#4fc3f7"/><text x="199" y="219" fill="white" font-size="10">10</text>
+            <circle cx="192" cy="152" r="7" fill="#4fc3f7"/><text x="199" y="156" fill="white" font-size="10">11</text>
+            <circle cx="192" cy="58" r="8" fill="#f06292"/><text x="199" y="62" fill="white" font-size="10">12 TIP</text>
+            <!-- Ring MCP=13, PIP=14, DIP=15, TIP=16 -->
+            <circle cx="236" cy="290" r="7" fill="#4fc3f7"/><text x="243" y="294" fill="white" font-size="10">13</text>
+            <circle cx="246" cy="222" r="7" fill="#4fc3f7"/><text x="253" y="226" fill="white" font-size="10">14</text>
+            <circle cx="252" cy="162" r="7" fill="#4fc3f7"/><text x="259" y="166" fill="white" font-size="10">15</text>
+            <circle cx="258" cy="70" r="8" fill="#f06292"/><text x="263" y="74" fill="white" font-size="10">16 TIP</text>
+            <!-- Pinky MCP=17, PIP=18, DIP=19, TIP=20 -->
+            <circle cx="268" cy="310" r="7" fill="#4fc3f7"/><text x="275" y="314" fill="white" font-size="10">17</text>
+            <circle cx="285" cy="250" r="7" fill="#4fc3f7"/><text x="292" y="254" fill="white" font-size="10">18</text>
+            <circle cx="296" cy="202" r="7" fill="#4fc3f7"/><text x="303" y="206" fill="white" font-size="10">19</text>
+            <circle cx="308" cy="140" r="8" fill="#f06292"/><text x="313" y="144" fill="white" font-size="10">20 TIP</text>
+          </svg>
+          <div class="landmark-legend">
+            <span class="dot pink"></span> Fingertips (used for gesture math)
+            &nbsp;&nbsp;
+            <span class="dot blue"></span> Joints
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SLIDE 4: Video / Media Slide ── -->
+    <section class="slide" id="slide-4">
+      <div class="slide-content slide-content--video">
+        <div class="slide-tag">04 / Live Demo</div>
+        <h1>Try It Yourself</h1>
+        <p class="subtitle">Show an <strong>Open Palm</strong> to the camera to play or pause the video below.</p>
+        <!--
+          Sample Big Buck Bunny clip (open-source, no copyright issues).
+          'playsinline' ensures it works on mobile without going full-screen.
+          'loop' keeps the demo looping.
+        -->
+        <div class="video-wrapper">
+          <video
+            id="demo-video"
+            src="mov_bbb.mp4"
+            playsinline
+            loop
+            poster=""
+          ></video>
+          <div id="video-overlay-icon">▶</div>
+        </div>
+      </div>
+    </section>
+
+  </main><!-- end #slide-deck -->
+
+  <!-- ═══════════════════════════════════════════
+       BOTTOM CONTROL BAR
+       Standard click-based controls + slide counter
+  ════════════════════════════════════════════ -->
+  <footer id="controls">
+
+    <div id="slide-counter">Slide <span id="current-slide">1</span> of 4</div>
+
+    <div id="btn-group">
+      <button id="btn-prev" class="ctrl-btn" title="Previous Slide (or point left)">
+        ◀ Prev
+      </button>
+      <button id="btn-next" class="ctrl-btn" title="Next Slide (or point right)">
+        Next ▶
+      </button>
+      <button id="btn-playpause" class="ctrl-btn accent" title="Play/Pause video (or open palm)">
+        ▶ Play
+      </button>
+      <button id="btn-camera" class="ctrl-btn camera-btn" title="Start webcam for gesture control">
+        📷 Start Camera
+      </button>
+    </div>
+
+  </footer>
+
+  <!-- ═══════════════════════════════════════════
+       WEBCAM PREVIEW (bottom-right corner)
+       - <video> shows the live webcam feed
+       - <canvas> is layered on top to draw hand
+         landmarks returned by MediaPipe
+  ════════════════════════════════════════════ -->
+  <div id="cam-preview" class="hidden">
+    <div id="cam-label">🤖 Gesture Cam</div>
+    <!-- The actual webcam stream (muted so no echo) -->
+    <video id="webcam" autoplay muted playsinline></video>
+    <!-- Canvas sits on top; we draw skeleton lines here -->
+    <canvas id="landmark-canvas"></canvas>
+  </div>
+
+</body>
+</html>
