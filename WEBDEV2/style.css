@@ -696,12 +696,68 @@ body {
   font-weight: 500;
 }
 
-/* Textarea Container */
+/* PDF Parse Progress Banner */
+.pdf-parse-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 1.25rem;
+  background: var(--primary-light);
+  border-bottom: 1px solid rgba(99, 102, 241, 0.25);
+  color: var(--primary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  animation: fadeIn 0.2s ease;
+}
+
+/* Textarea Container & Drag-Drop Overlay */
 .textarea-container {
   flex: 1;
   padding: 0;
   display: flex;
   background-color: var(--bg-surface);
+  position: relative;
+}
+
+.dropzone-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(99, 102, 241, 0.08);
+  backdrop-filter: blur(4px);
+  border: 2px dashed var(--primary);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  animation: fadeIn 0.2s ease;
+  pointer-events: none;
+}
+
+.dropzone-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  padding: 1.5rem 2rem;
+  border-radius: var(--radius-lg);
+  text-align: center;
+  box-shadow: var(--card-shadow-hover);
+}
+
+.dropzone-icon {
+  font-size: 2.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.dropzone-card h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 0.25rem;
+}
+
+.dropzone-card p {
+  font-size: 0.8rem;
+  color: var(--text-muted);
 }
 
 #notesInput {

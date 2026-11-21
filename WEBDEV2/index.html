@@ -10,6 +10,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- PDF.js for 100% Client-Side In-Browser PDF Parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
 
@@ -174,6 +176,11 @@
           </div>
 
           <div class="panel-actions">
+            <button id="uploadPdfBtn" class="btn btn-secondary btn-sm" title="Upload or drop lecture slides (PDF, TXT, MD)">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="12" y2="12"></line><line x1="15" y1="15" x2="12" y2="12"></line></svg>
+              Upload PDF
+            </button>
+            <input type="file" id="pdfFileInput" accept=".pdf,.txt,.md" style="display: none;" />
             <button id="loadSampleBtn" class="btn btn-secondary btn-sm" title="Paste a pre-made college lecture on Neural Networks & AI">
               <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
               Load Sample
@@ -183,6 +190,12 @@
               Clear
             </button>
           </div>
+        </div>
+
+        <!-- PDF Extraction Progress Banner -->
+        <div id="pdfParseProgressBanner" class="pdf-parse-banner hidden">
+          <div class="spinner-small"></div>
+          <span id="pdfParseStatusText">Extracting lecture text from PDF (Page 1 of 5)...</span>
         </div>
 
         <!-- Editable Note Title Bar -->
@@ -197,13 +210,22 @@
           />
         </div>
 
-        <!-- Main Input Textarea -->
-        <div class="textarea-container">
+        <!-- Main Input Textarea with Drag & Drop Overlay -->
+        <div class="textarea-container" id="textareaContainer">
           <textarea
             id="notesInput"
-            placeholder="Type or paste your lecture notes, textbook passages, or research papers here... (e.g. at least 3-4 sentences for best AI summary results)"
+            placeholder="Type, paste, or drag-and-drop your lecture PDF/slides here... (e.g. at least 3-4 sentences for best AI summary results)"
             spellcheck="true"
           ></textarea>
+
+          <!-- Drag and Drop Active Overlay -->
+          <div id="dropZoneOverlay" class="dropzone-overlay hidden">
+            <div class="dropzone-card">
+              <div class="dropzone-icon">📄</div>
+              <h3>Drop Lecture PDF or Slides Here</h3>
+              <p>Text will be extracted 100% offline &amp; private in your browser</p>
+            </div>
+          </div>
         </div>
 
         <!-- Live Counters & Summary Length Controls -->

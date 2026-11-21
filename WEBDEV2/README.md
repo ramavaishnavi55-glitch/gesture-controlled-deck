@@ -30,6 +30,11 @@ A 100% offline-capable, client-side AI study assistant built with **HTML5**, **C
    - **Backup & Restore**: Export the entire multi-course workspace into a portable JSON file to back up or migrate between devices.
    - One-click **Copy Summary** and **Export to Markdown (.md)**.
 
+6. **📄 Drag-and-Drop PDF & Slide Deck Extraction (PDF.js)**
+   - Drag and drop lecture slides or reading materials (`.pdf`, `.txt`, `.md`) directly into the workspace.
+   - PDF pages are decoded and extracted 100% locally in your browser using **PDF.js** without uploading files anywhere.
+   - Automatically names notes using the file name and feeds extracted text into the AI summarizer.
+
 ---
 
 ## 📁 Project Structure

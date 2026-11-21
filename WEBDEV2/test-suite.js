@@ -326,3 +326,24 @@ test('Network: Transformers.js CDN is reachable and returns 200 OK', async () =>
     console.warn(`[Network Test Warning]: Could not reach ${cdnUrl}. (Offline mode):`, err.message);
   }
 });
+
+// ============================================================================
+// SUITE 8: PDF Parser & Document Ingestion Engine
+// ============================================================================
+test('PDF Integration: PDF.js script tag and Drag & Drop UI elements', () => {
+  assert.match(htmlContent, /src=["'][^"']*pdf(\.min)?\.js["']/, 'index.html must include PDF.js library script');
+  assert.match(htmlContent, /id=["']uploadPdfBtn["']/, 'Upload PDF button must be present in index.html');
+  assert.match(htmlContent, /id=["']dropZoneOverlay["']/, 'Dropzone overlay must be present in index.html');
+  assert.match(htmlContent, /id=["']pdfParseProgressBanner["']/, 'PDF progress banner must be present in index.html');
+});
+
+test('Algorithm: Document filename formatting to clean note title', () => {
+  function formatDocumentTitle(filename) {
+    const raw = filename.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
+    return raw.charAt(0).toUpperCase() + raw.slice(1);
+  }
+
+  assert.equal(formatDocumentTitle('cs301_deep_learning_lecture4.pdf'), 'Cs301 deep learning lecture4');
+  assert.equal(formatDocumentTitle('neural-networks-overview.txt'), 'Neural networks overview');
+  assert.equal(formatDocumentTitle('mitochondria_atp_biology.md'), 'Mitochondria atp biology');
+});

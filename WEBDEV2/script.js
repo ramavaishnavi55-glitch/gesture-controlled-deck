@@ -212,6 +212,14 @@ const charCountEl = document.getElementById('charCount');
 const readTimeEl = document.getElementById('readTime');
 const saveStatusIndicator = document.getElementById('saveStatusIndicator');
 
+// Document / PDF Upload & Drag-and-Drop
+const uploadPdfBtn = document.getElementById('uploadPdfBtn');
+const pdfFileInput = document.getElementById('pdfFileInput');
+const textareaContainer = document.getElementById('textareaContainer');
+const dropZoneOverlay = document.getElementById('dropZoneOverlay');
+const pdfParseProgressBanner = document.getElementById('pdfParseProgressBanner');
+const pdfParseStatusText = document.getElementById('pdfParseStatusText');
+
 // Generation Controls
 const summaryLengthSelect = document.getElementById('summaryLengthSelect');
 const summarizeBtn = document.getElementById('summarizeBtn');
@@ -1342,9 +1350,142 @@ function escapeHtml(str) {
 }
 
 // ============================================================================
-// 12. EVENT LISTENERS INITIALIZATION
+// 12. CLIENT-SIDE PDF & DOCUMENT PARSER (PDF.js Integration)
+// ============================================================================
+
+/**
+ * Initializes the PDF.js web worker source
+ */
+function initPdfLib() {
+  if (typeof window !== 'undefined' && window.pdfjsLib) {
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+}
+
+/**
+ * Extracts text from PDF, TXT, or Markdown documents 100% locally in browser
+ */
+async function handleDocumentFile(file) {
+  if (!file) return;
+
+  const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+  const isText = file.type.startsWith('text/') || file.name.match(/\.(txt|md|markdown)$/i);
+
+  if (!isPdf && !isText) {
+    alert('Please upload a PDF document (.pdf) or text note file (.txt, .md).');
+    return;
+  }
+
+  try {
+    let extractedText = '';
+
+    if (isPdf) {
+      if (!window.pdfjsLib) {
+        alert('PDF.js library is not available. Please verify your internet connection.');
+        return;
+      }
+
+      pdfParseProgressBanner.classList.remove('hidden');
+      pdfParseStatusText.textContent = 'Reading PDF binary data...';
+
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const numPages = pdf.numPages;
+
+      let pageTexts = [];
+      for (let i = 1; i <= numPages; i++) {
+        pdfParseStatusText.textContent = `Extracting text from PDF (Page ${i} of ${numPages})...`;
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const strings = textContent.items.map(item => item.str);
+        const cleanPageText = strings.join(' ').replace(/\s+/g, ' ').trim();
+        if (cleanPageText) {
+          pageTexts.push(`[Slide / Page ${i}]\n${cleanPageText}`);
+        }
+      }
+
+      extractedText = pageTexts.join('\n\n');
+    } else {
+      extractedText = await file.text();
+    }
+
+    pdfParseProgressBanner.classList.add('hidden');
+
+    if (!extractedText.trim()) {
+      alert('No readable text could be extracted from this document (it might be a scanned image-only PDF without OCR).');
+      return;
+    }
+
+    // Auto-populate note title from file name if currently untitled
+    const rawName = file.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
+    const formattedTitle = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+
+    if (!noteTitleInput.value.trim() || noteTitleInput.value.trim() === 'Untitled Lecture Note') {
+      noteTitleInput.value = formattedTitle;
+    }
+
+    // Load extracted text into active note
+    notesInput.value = extractedText;
+    handleNoteInput();
+    notesInput.scrollTop = 0;
+
+    console.log(`[StudyBrain AI] Successfully extracted ${calculateWordCount(extractedText)} words from ${file.name}.`);
+  } catch (err) {
+    console.error('PDF extraction failed:', err);
+    pdfParseProgressBanner.classList.add('hidden');
+    alert('Error extracting text from document: ' + err.message);
+  }
+}
+
+// ============================================================================
+// 13. EVENT LISTENERS INITIALIZATION
 // ============================================================================
 function initEventListeners() {
+  // Document / PDF Upload button & file input
+  uploadPdfBtn.addEventListener('click', () => pdfFileInput.click());
+  pdfFileInput.addEventListener('change', (e) => {
+    if (e.target.files && e.target.files[0]) {
+      handleDocumentFile(e.target.files[0]);
+    }
+    e.target.value = ''; // Reset input to allow re-uploading same file
+  });
+
+  // Drag and Drop over Textarea Container
+  let dragCounter = 0;
+
+  textareaContainer.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter++;
+    dropZoneOverlay.classList.remove('hidden');
+  });
+
+  textareaContainer.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  });
+
+  textareaContainer.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter--;
+    if (dragCounter <= 0) {
+      dragCounter = 0;
+      dropZoneOverlay.classList.add('hidden');
+    }
+  });
+
+  textareaContainer.addEventListener('drop', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter = 0;
+    dropZoneOverlay.classList.add('hidden');
+
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleDocumentFile(e.dataTransfer.files[0]);
+    }
+  });
   // Sidebar Toggle
   sidebarToggleBtn.addEventListener('click', () => toggleSidebar());
   sidebarBackdrop.addEventListener('click', () => toggleSidebar(false));
@@ -1463,6 +1604,7 @@ Modern advancements have enabled edge AI, allowing neural models to execute dire
 // ============================================================================
 document.addEventListener('DOMContentLoaded', async () => {
   initTheme();
+  initPdfLib();
   initEventListeners();
   initializeWorker();
 
