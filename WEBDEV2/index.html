@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StudyBrain AI - Privacy-First In-Browser Notes Summarizer</title>
+  <meta name="description" content="100% Client-side AI study assistant, multi-course notebook workspace, and lecture notes summarizer powered by Transformers.js, IndexedDB, and Web Workers." />
+  <link rel="stylesheet" href="style.css" />
+  <!-- Google Fonts for crisp typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- ========================================================
+       TOP NAVIGATION & PRIVACY BADGE
+       ======================================================== -->
+  <header class="app-header">
+    <div class="header-brand">
+      <!-- Sidebar Toggle Button -->
+      <button id="sidebarToggleBtn" class="icon-button sidebar-toggle" aria-label="Toggle Course Sidebar" title="Toggle Course Sidebar (Ctrl+B)">
+        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="9" y1="3" x2="9" y2="21"></line>
+        </svg>
+      </button>
+
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" width="26" height="26" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7z"></path>
+          <path d="M9 21h6"></path>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1>StudyBrain <span class="gradient-text">AI</span></h1>
+        <p class="brand-subtitle">Multi-Course Workspace &amp; Edge AI Summarizer</p>
+      </div>
+    </div>
+
+    <!-- 100% Offline & Private Security Badge + Theme Switcher -->
+    <div class="header-badges">
+      <div class="privacy-badge" title="All processing occurs inside your browser via WebAssembly and IndexedDB. Zero data sent to servers!">
+        <span class="pulse-indicator"></span>
+        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+        <span>100% Offline &amp; Private (Runs Locally)</span>
+      </div>
+
+      <!-- Theme Switcher -->
+      <button id="themeToggleBtn" class="icon-button" aria-label="Toggle dark/light theme" title="Toggle theme">
+        <span class="theme-icon light-icon">☀️</span>
+        <span class="theme-icon dark-icon">🌙</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ========================================================
+       AI MODEL DOWNLOAD & CACHING PROGRESS BANNER
+       ======================================================== -->
+  <section id="modelProgressContainer" class="progress-card hidden">
+    <div class="progress-header">
+      <div class="progress-title-group">
+        <div class="spinner-small" id="modelSpinner"></div>
+        <div>
+          <strong id="progressStatusLabel">Initializing Browser AI Model...</strong>
+          <p class="progress-note" id="progressDetailLabel">First-time download only (~100-300MB). Model is cached permanently in your browser for instant offline use.</p>
+        </div>
+      </div>
+      <span id="progressPercentage" class="progress-percentage">0%</span>
+    </div>
+    <div class="progress-track">
+      <div id="progressBarFill" class="progress-fill" style="width: 0%;"></div>
+    </div>
+  </section>
+
+  <!-- ========================================================
+       APP CONTAINER: SIDEBAR + SPLIT WORKSPACE
+       ======================================================== -->
+  <div class="app-layout-container">
+
+    <!-- Backdrop for mobile drawer -->
+    <div id="sidebarBackdrop" class="sidebar-backdrop hidden"></div>
+
+    <!-- ========================================================
+         SIDEBAR: MULTI-NOTEBOOK & LECTURES LIST
+         ======================================================== -->
+    <aside id="appSidebar" class="app-sidebar" aria-label="Courses and Notebooks Sidebar">
+      
+      <!-- Notebook / Course Selector Header -->
+      <div class="sidebar-header">
+        <div class="notebook-selector-row">
+          <div class="notebook-select-wrapper">
+            <span id="activeNotebookDot" class="notebook-color-dot" style="background-color: #6366f1;"></span>
+            <select id="notebookSelect" class="notebook-dropdown" title="Switch Course / Notebook">
+              <!-- Dynamically populated from IndexedDB -->
+            </select>
+          </div>
+          <button id="addNotebookBtn" class="icon-button-sm" title="Create New Course / Notebook" aria-label="Create New Course">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          </button>
+          <button id="deleteNotebookBtn" class="icon-button-sm icon-button-danger" title="Delete Active Course" aria-label="Delete Active Course">
+            <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+          </button>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="sidebar-search">
+          <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" id="searchNotesInput" placeholder="Search notes in course..." />
+          <button id="clearSearchBtn" class="search-clear-btn hidden" title="Clear search">✕</button>
+        </div>
+
+        <!-- Primary Action: Create New Note -->
+        <button id="newNoteBtn" class="btn btn-primary btn-block">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.2" fill="none"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          <span>New Lecture Note</span>
+        </button>
+      </div>
+
+      <!-- Scrollable Notes List for Active Notebook -->
+      <div class="sidebar-notes-scroll">
+        <div class="notes-list-header">
+          <span class="notes-list-title">LECTURE NOTES</span>
+          <span id="notesCountBadge" class="notes-count-badge">0 notes</span>
+        </div>
+        <div id="notesListContainer" class="notes-list-container">
+          <!-- Dynamically populated from IndexedDB -->
+        </div>
+      </div>
+
+      <!-- Sidebar Footer: Storage Info & Backup/Restore -->
+      <div class="sidebar-footer">
+        <div class="sidebar-storage-meta">
+          <span class="storage-icon">🗄️</span>
+          <span id="storageStatusText">IndexedDB Active (Local)</span>
+        </div>
+        <div class="sidebar-footer-actions">
+          <button id="exportWorkspaceBtn" class="btn btn-ghost btn-xs" title="Export entire workspace as JSON backup">
+            <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            Backup
+          </button>
+          <button id="importWorkspaceBtn" class="btn btn-ghost btn-xs" title="Restore workspace from JSON backup">
+            <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            Restore
+          </button>
+          <input type="file" id="restoreFileInput" accept=".json" style="display: none;" />
+        </div>
+      </div>
+    </aside>
+
+    <!-- ========================================================
+         MAIN STUDY WORKSPACE (SPLIT SCREEN LAYOUT)
+         ======================================================== -->
+    <main class="study-workspace">
+
+      <!-- LEFT PANEL: RAW LECTURE NOTES & TITLE & INPUT CONTROLS -->
+      <section class="panel panel-left" aria-labelledby="inputPanelTitle">
+        <div class="panel-header">
+          <div class="panel-title-wrapper">
+            <h2 id="inputPanelTitle">
+              <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+              </svg>
+              Lecture Notes
+            </h2>
+            <span id="saveStatusIndicator" class="save-status">Saved in IndexedDB ✓</span>
+          </div>
+
+          <div class="panel-actions">
+            <button id="loadSampleBtn" class="btn btn-secondary btn-sm" title="Paste a pre-made college lecture on Neural Networks & AI">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+              Load Sample
+            </button>
+            <button id="clearNotesBtn" class="btn btn-ghost btn-sm" title="Clear active note text">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+              Clear
+            </button>
+          </div>
+        </div>
+
+        <!-- Editable Note Title Bar -->
+        <div class="note-title-bar">
+          <input 
+            type="text" 
+            id="noteTitleInput" 
+            class="note-title-input" 
+            placeholder="Untitled Lecture Note..." 
+            maxlength="120"
+            title="Click to rename note"
+          />
+        </div>
+
+        <!-- Main Input Textarea -->
+        <div class="textarea-container">
+          <textarea
+            id="notesInput"
+            placeholder="Type or paste your lecture notes, textbook passages, or research papers here... (e.g. at least 3-4 sentences for best AI summary results)"
+            spellcheck="true"
+          ></textarea>
+        </div>
+
+        <!-- Live Counters & Summary Length Controls -->
+        <div class="panel-footer">
+          <div class="stats-group">
+            <span class="stat-item"><strong id="wordCount">0</strong> words</span>
+            <span class="stat-divider">•</span>
+            <span class="stat-item"><strong id="charCount">0</strong> characters</span>
+            <span class="stat-divider">•</span>
+            <span class="stat-item" id="readTime">0 min read</span>
+          </div>
+
+          <div class="generation-controls">
+            <div class="length-selector-wrapper">
+              <label for="summaryLengthSelect">Length:</label>
+              <select id="summaryLengthSelect" class="custom-select">
+                <option value="short">Short (Key Insight)</option>
+                <option value="medium" selected>Medium (Balanced Overview)</option>
+                <option value="detailed">Detailed (Comprehensive)</option>
+              </select>
+            </div>
+
+            <button id="summarizeBtn" class="btn btn-primary">
+              <span class="btn-icon">
+                <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                </svg>
+              </span>
+              <span id="summarizeBtnText">Summarize Notes</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT PANEL: AI SUMMARY, BULLET POINTS & FLASHCARDS -->
+      <section class="panel panel-right" aria-labelledby="outputPanelTitle">
+        <div class="panel-header">
+          <!-- Interactive Output Tabs -->
+          <nav class="output-tabs" role="tablist" aria-label="Summary Views">
+            <button id="tabSummary" class="tab-btn active" role="tab" aria-selected="true" data-tab="summaryView">
+              <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+              AI Summary
+            </button>
+            <button id="tabBullets" class="tab-btn" role="tab" aria-selected="false" data-tab="bulletsView">
+              <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+              Key Bullets
+            </button>
+            <button id="tabFlashcards" class="tab-btn" role="tab" aria-selected="false" data-tab="flashcardsView">
+              <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+              Study Flashcards
+              <span id="flashcardCountBadge" class="badge-mini">0</span>
+            </button>
+          </nav>
+
+          <div class="panel-actions">
+            <button id="copySummaryBtn" class="btn btn-secondary btn-sm" title="Copy current summary to clipboard">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              <span id="copyBtnText">Copy</span>
+            </button>
+            <button id="downloadNotesBtn" class="btn btn-ghost btn-sm" title="Download summary as markdown text file">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              Export
+            </button>
+          </div>
+        </div>
+
+        <!-- Tab Content Area -->
+        <div class="panel-content-area">
+
+          <!-- TAB 1: AI SUMMARY VIEW -->
+          <div id="summaryView" class="tab-pane active" role="tabpanel">
+            <div id="emptySummaryState" class="empty-state">
+              <div class="empty-state-icon">🤖</div>
+              <h3>No Summary Generated Yet</h3>
+              <p>Type or paste your notes on the left and click <strong>"Summarize Notes"</strong> to run our private on-device AI model.</p>
+            </div>
+
+            <div id="activeSummaryContent" class="summary-result hidden">
+              <div class="summary-meta-bar">
+                <span class="meta-tag">⚡ Generated via Transformers.js (DistilBART)</span>
+                <span id="compressionRatio" class="meta-tag meta-success">60% condensed</span>
+              </div>
+              <div id="summaryTextOutput" class="summary-prose"></div>
+            </div>
+          </div>
+
+          <!-- TAB 2: KEY BULLET POINTS VIEW -->
+          <div id="bulletsView" class="tab-pane" role="tabpanel">
+            <div id="emptyBulletsState" class="empty-state">
+              <div class="empty-state-icon">📌</div>
+              <h3>Bullet Points Awaiting Summary</h3>
+              <p>Once you generate a summary, core actionable insights will automatically be formatted into study bullet points here.</p>
+            </div>
+
+            <div id="activeBulletsContent" class="bullets-container hidden">
+              <div class="bullets-header">
+                <h4>High-Yield Core Takeaways</h4>
+                <span class="bullets-sub">Extracted key points for rapid revision</span>
+              </div>
+              <ul id="bulletsList" class="study-bullets-list"></ul>
+            </div>
+          </div>
+
+          <!-- TAB 3: INTERACTIVE STUDY FLASHCARDS VIEW -->
+          <div id="flashcardsView" class="tab-pane" role="tabpanel">
+            <div id="emptyFlashcardsState" class="empty-state">
+              <div class="empty-state-icon">🎴</div>
+              <h3>Flip-Cards Not Ready</h3>
+              <p>Your notes summary will be transformed into active-recall revision flashcards right here.</p>
+            </div>
+
+            <div id="activeFlashcardsContent" class="flashcards-wrapper hidden">
+              <div class="flashcards-top-bar">
+                <span class="flashcard-instruction">💡 Click any card to flip between Question and Answer</span>
+                <button id="flipAllCardsBtn" class="btn btn-ghost btn-sm">Flip All</button>
+              </div>
+              <div id="flashcardsGrid" class="flashcards-grid">
+                <!-- Dynamically populated 3D flip-cards -->
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+    </main>
+
+  </div>
+
+  <!-- ========================================================
+       MODAL: CREATE NEW COURSE / NOTEBOOK
+       ======================================================== -->
+  <div id="newNotebookModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modalTitle">Create New Course / Notebook</h3>
+        <button id="closeModalBtn" class="modal-close-btn" aria-label="Close dialog">✕</button>
+      </div>
+      <div class="modal-body">
+        <label for="notebookNameInput" class="modal-label">Course / Notebook Name:</label>
+        <input type="text" id="notebookNameInput" class="modal-input" placeholder="e.g. CS301 - Deep Learning, Neurobiology..." maxlength="50" />
+        
+        <label class="modal-label" style="margin-top: 1rem;">Color Tag:</label>
+        <div class="color-palette" id="colorPalette">
+          <button type="button" class="color-dot active" data-color="#6366f1" style="background-color: #6366f1;" title="Indigo"></button>
+          <button type="button" class="color-dot" data-color="#10b981" style="background-color: #10b981;" title="Emerald"></button>
+          <button type="button" class="color-dot" data-color="#ec4899" style="background-color: #ec4899;" title="Rose"></button>
+          <button type="button" class="color-dot" data-color="#f59e0b" style="background-color: #f59e0b;" title="Amber"></button>
+          <button type="button" class="color-dot" data-color="#06b6d4" style="background-color: #06b6d4;" title="Cyan"></button>
+          <button type="button" class="color-dot" data-color="#8b5cf6" style="background-color: #8b5cf6;" title="Purple"></button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="cancelModalBtn" class="btn btn-ghost btn-sm">Cancel</button>
+        <button id="saveNotebookBtn" class="btn btn-primary btn-sm">Create Course</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       FOOTER: ARCHITECTURE & PRIVACY EXPLANATION
+       ======================================================== -->
+  <footer class="app-footer">
+    <div class="footer-content">
+      <div class="footer-privacy-info">
+        <span class="security-dot"></span>
+        <p>
+          <strong>Privacy Guarantee:</strong> All lectures and flashcards are stored locally in your browser's 
+          <em>IndexedDB</em> engine. AI inference runs client-side via <em>Transformers.js</em> in a dedicated <em>Web Worker</em>. 
+          Zero cloud storage, zero tracking.
+        </p>
+      </div>
+      <div class="footer-tags">
+        <span class="tech-tag">IndexedDB (Multi-Notebook)</span>
+        <span class="tech-tag">Web Workers</span>
+        <span class="tech-tag">WebAssembly</span>
+        <span class="tech-tag">HTML5 &amp; CSS3</span>
+        <a href="tests.html" class="tech-tag" style="text-decoration: none; color: var(--primary); font-weight: 700;" title="Open In-Browser QA Test Suite">🧪 QA Tests</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Main JavaScript Orchestrator -->
+  <script src="script.js" type="module"></script>
+</body>
+</html>

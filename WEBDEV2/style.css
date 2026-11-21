@@ -1,0 +1,1391 @@
+/* ==========================================================================
+   StudyBrain AI - Design System & Modern Responsive Stylesheet
+   Pure CSS3 with Custom Properties (Variables), 3D Transforms, & Flex/Grid
+   Includes Collapsible Course Sidebar, Note Cards, & IndexedDB Workspace UI
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. CSS Variables / Design Tokens (Light & Dark Mode)
+   -------------------------------------------------------------------------- */
+:root {
+  /* Color Palette - Light Mode Default */
+  --bg-page: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-surface-alt: #f1f5f9;
+  --bg-surface-elevated: #ffffff;
+  
+  --text-main: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+
+  --border-color: #e2e8f0;
+  --border-focus: #6366f1;
+
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+  --primary-light: #eef2ff;
+  --primary-text: #4338ca;
+
+  --success: #10b981;
+  --success-light: #ecfdf5;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+
+  --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --card-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+  
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+
+  --font-main: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'Fira Code', monospace;
+  
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s ease;
+}
+
+[data-theme="dark"] {
+  /* Color Palette - Dark Mode */
+  --bg-page: #0b0f19;
+  --bg-surface: #111827;
+  --bg-surface-alt: #1e293b;
+  --bg-surface-elevated: #1f293d;
+
+  --text-main: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #64748b;
+
+  --border-color: #334155;
+  --border-focus: #818cf8;
+
+  --primary: #6366f1;
+  --primary-hover: #4f46e5;
+  --primary-light: rgba(99, 102, 241, 0.15);
+  --primary-text: #a5b4fc;
+
+  --success: #10b981;
+  --success-light: rgba(16, 185, 129, 0.15);
+  --warning: #f59e0b;
+  --danger: #ef4444;
+
+  --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+  --card-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+}
+
+/* --------------------------------------------------------------------------
+   2. Reset & Global Styles
+   -------------------------------------------------------------------------- */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-main);
+  background-color: var(--bg-page);
+  color: var(--text-main);
+  line-height: 1.5;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  transition: background-color var(--transition-normal), color var(--transition-normal);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --------------------------------------------------------------------------
+   3. Header Navigation & Brand
+   -------------------------------------------------------------------------- */
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  background-color: var(--bg-surface);
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(8px);
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sidebar-toggle {
+  margin-right: 0.15rem;
+}
+
+.logo-icon {
+  background: linear-gradient(135deg, #4f46e5, #9333ea);
+  color: #ffffff;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3);
+  flex-shrink: 0;
+}
+
+.brand-text h1 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #4f46e5 0%, #ec4899 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.brand-subtitle {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.header-badges {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* 100% Offline / Local Privacy Badge */
+.privacy-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: var(--success-light);
+  color: var(--success);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 0.35rem 0.8rem;
+  border-radius: var(--radius-full);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: help;
+  user-select: none;
+}
+
+.pulse-indicator {
+  width: 8px;
+  height: 8px;
+  background-color: var(--success);
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 0 rgba(16, 185, 129, 0.4);
+  animation: pulse-glow 2s infinite;
+}
+
+@keyframes pulse-glow {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
+  70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+/* Theme Toggle & Icon Buttons */
+.icon-button {
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-main);
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.icon-button:hover {
+  background: var(--border-color);
+  transform: scale(1.05);
+}
+
+.icon-button-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface-alt);
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.icon-button-sm:hover {
+  background: var(--border-color);
+  transform: scale(1.05);
+}
+
+.icon-button-danger:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* Toggle light/dark icon visibility */
+[data-theme="light"] .dark-icon { display: none; }
+[data-theme="light"] .light-icon { display: block; }
+[data-theme="dark"] .light-icon { display: none; }
+[data-theme="dark"] .dark-icon { display: block; }
+
+/* --------------------------------------------------------------------------
+   4. Model Download / Progress Bar Banner
+   -------------------------------------------------------------------------- */
+.progress-card {
+  margin: 0.75rem 1.5rem 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1.2rem;
+  box-shadow: var(--card-shadow);
+  animation: fadeIn 0.3s ease;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.progress-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.spinner-small {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.progress-note {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.progress-percentage {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--primary);
+}
+
+.progress-track {
+  width: 100%;
+  height: 7px;
+  background-color: var(--bg-surface-alt);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4f46e5, #06b6d4);
+  border-radius: var(--radius-full);
+  transition: width 0.25s ease;
+}
+
+/* --------------------------------------------------------------------------
+   5. App Layout Container (Sidebar + Split Workspace)
+   -------------------------------------------------------------------------- */
+.app-layout-container {
+  display: flex;
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  height: calc(100vh - 120px);
+  min-height: 560px;
+}
+
+/* Backdrop for Mobile */
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  z-index: 35;
+}
+
+/* --------------------------------------------------------------------------
+   6. Sidebar (Multi-Notebook & Lecture List)
+   -------------------------------------------------------------------------- */
+.app-sidebar {
+  width: 310px;
+  min-width: 310px;
+  background-color: var(--bg-surface);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  transition: margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 30;
+}
+
+.app-sidebar.collapsed {
+  margin-left: -310px;
+}
+
+/* Sidebar Header */
+.sidebar-header {
+  padding: 0.85rem 0.85rem 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.notebook-selector-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.notebook-select-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.25rem 0.6rem;
+  overflow: hidden;
+}
+
+.notebook-color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.notebook-dropdown {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text-main);
+  font-size: 0.84rem;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+  text-overflow: ellipsis;
+}
+
+/* Search Bar */
+.sidebar-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.35rem 0.65rem;
+  gap: 0.45rem;
+  color: var(--text-muted);
+}
+
+.sidebar-search input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 0.82rem;
+  color: var(--text-main);
+  font-family: var(--font-main);
+}
+
+.sidebar-search input::placeholder {
+  color: var(--text-muted);
+}
+
+.search-clear-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 0 0.2rem;
+}
+
+.search-clear-btn:hover {
+  color: var(--text-main);
+}
+
+.btn-block {
+  width: 100%;
+  justify-content: center;
+}
+
+/* Notes List in Sidebar */
+.sidebar-notes-scroll {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.notes-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0.85rem 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.notes-count-badge {
+  background: var(--bg-surface-alt);
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-full);
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+}
+
+.notes-list-container {
+  padding: 0.4rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+/* Individual Note Item Card */
+.note-item {
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background: var(--bg-surface);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  position: relative;
+  user-select: none;
+}
+
+.note-item:hover {
+  background: var(--bg-surface-alt);
+  border-color: var(--border-color);
+}
+
+.note-item.active {
+  background: var(--primary-light);
+  border-color: var(--primary);
+}
+
+.note-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.note-item-title {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.note-item-delete-btn {
+  opacity: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.15rem 0.25rem;
+  border-radius: 4px;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.note-item:hover .note-item-delete-btn {
+  opacity: 0.75;
+}
+
+.note-item-delete-btn:hover {
+  opacity: 1;
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.note-item-snippet {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.35;
+}
+
+.note-item-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-top: 0.1rem;
+}
+
+.note-item-meta-tag {
+  background: var(--bg-surface-alt);
+  padding: 0.05rem 0.35rem;
+  border-radius: var(--radius-full);
+}
+
+.notes-empty-state {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+/* Sidebar Footer */
+.sidebar-footer {
+  padding: 0.65rem 0.85rem;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-surface-alt);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sidebar-storage-meta {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.storage-icon {
+  font-size: 0.85rem;
+}
+
+.sidebar-footer-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.btn-xs {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.72rem;
+  border-radius: var(--radius-sm);
+}
+
+/* --------------------------------------------------------------------------
+   7. Main Study Workspace (Split-Screen Layout)
+   -------------------------------------------------------------------------- */
+.study-workspace {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  padding: 1.25rem 1.5rem;
+  overflow-y: auto;
+  height: 100%;
+}
+
+/* Panels */
+.panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%;
+  min-height: 520px;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.85rem 1.25rem;
+  background-color: var(--bg-surface);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.panel-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.panel-title-wrapper h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-main);
+}
+
+.save-status {
+  font-size: 0.74rem;
+  color: var(--success);
+  font-weight: 500;
+  background: var(--success-light);
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-full);
+  transition: opacity 0.3s;
+}
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Note Title Bar */
+.note-title-bar {
+  padding: 0.65rem 1.25rem 0.4rem;
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--bg-surface);
+}
+
+.note-title-input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: var(--font-main);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: -0.01em;
+}
+
+.note-title-input::placeholder {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* Textarea Container */
+.textarea-container {
+  flex: 1;
+  padding: 0;
+  display: flex;
+  background-color: var(--bg-surface);
+}
+
+#notesInput {
+  width: 100%;
+  height: 100%;
+  border: none;
+  outline: none;
+  resize: none;
+  padding: 1.25rem;
+  font-family: var(--font-main);
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: var(--text-main);
+  background-color: transparent;
+}
+
+#notesInput::placeholder {
+  color: var(--text-muted);
+}
+
+/* Panel Footer with stats & controls */
+.panel-footer {
+  padding: 0.75rem 1.25rem;
+  background-color: var(--bg-surface-alt);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.stats-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.stat-divider {
+  color: var(--text-muted);
+}
+
+.generation-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.length-selector-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.custom-select {
+  padding: 0.45rem 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-surface);
+  color: var(--text-main);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.custom-select:focus {
+  border-color: var(--border-focus);
+}
+
+/* --------------------------------------------------------------------------
+   8. Buttons Design System
+   -------------------------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+  border-radius: var(--radius-md);
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  padding: 0.52rem 0.95rem;
+  font-family: var(--font-main);
+}
+
+.btn-sm {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.78rem;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary) 0%, #4338ca 100%);
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(79, 70, 229, 0.3);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--primary-hover) 0%, #3730a3 100%);
+  box-shadow: 0 4px 8px rgba(79, 70, 229, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background-color: var(--bg-surface-alt);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+  background-color: var(--border-color);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.btn-ghost:hover {
+  background-color: var(--bg-surface-alt);
+  color: var(--text-main);
+}
+
+/* --------------------------------------------------------------------------
+   9. Right Panel (Tabs & Views)
+   -------------------------------------------------------------------------- */
+.output-tabs {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: var(--radius-md);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.tab-btn:hover {
+  color: var(--text-main);
+  background: var(--bg-surface-alt);
+}
+
+.tab-btn.active {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+.badge-mini {
+  background: var(--primary);
+  color: #ffffff;
+  border-radius: var(--radius-full);
+  font-size: 0.65rem;
+  padding: 0.05rem 0.4rem;
+  font-weight: 700;
+}
+
+.panel-content-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem;
+  position: relative;
+}
+
+.tab-pane {
+  display: none;
+  height: 100%;
+}
+
+.tab-pane.active {
+  display: block;
+  animation: fadeIn 0.25s ease;
+}
+
+/* Empty State Placeholders */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: 100%;
+  min-height: 280px;
+  color: var(--text-muted);
+  padding: 2rem;
+}
+
+.empty-state-icon {
+  font-size: 2.8rem;
+  margin-bottom: 0.75rem;
+}
+
+.empty-state h3 {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.4rem;
+}
+
+.empty-state p {
+  font-size: 0.88rem;
+  max-width: 380px;
+}
+
+/* --------------------------------------------------------------------------
+   10. Tab 1: AI Summary Content
+   -------------------------------------------------------------------------- */
+.summary-result {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.summary-meta-bar {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.meta-tag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface-alt);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.meta-success {
+  background-color: var(--success-light);
+  color: var(--success);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.summary-prose {
+  font-size: 1rem;
+  line-height: 1.8;
+  color: var(--text-main);
+  background-color: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  padding: 1.25rem;
+  border-radius: var(--radius-md);
+  white-space: pre-wrap;
+}
+
+/* --------------------------------------------------------------------------
+   11. Tab 2: Key Bullet Points Content
+   -------------------------------------------------------------------------- */
+.bullets-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.bullets-header h4 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.bullets-sub {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.study-bullets-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.study-bullet-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  background-color: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  padding: 0.9rem 1.1rem;
+  border-radius: var(--radius-md);
+  line-height: 1.6;
+  font-size: 0.93rem;
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+
+.study-bullet-item:hover {
+  transform: translateX(4px);
+  border-color: var(--primary);
+}
+
+.bullet-number {
+  background: var(--primary);
+  color: #ffffff;
+  min-width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   12. Tab 3: Interactive 3D Study Flashcards
+   -------------------------------------------------------------------------- */
+.flashcards-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.flashcards-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.flashcard-instruction {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.flashcards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1.25rem;
+  perspective: 1200px; /* Essential for 3D flip sensation */
+}
+
+/* Flipcard item */
+.flashcard {
+  height: 220px;
+  cursor: pointer;
+  background-color: transparent;
+  user-select: none;
+}
+
+.flashcard-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-style: preserve-3d;
+  box-shadow: var(--card-shadow);
+  border-radius: var(--radius-lg);
+}
+
+.flashcard.is-flipped .flashcard-inner {
+  transform: rotateY(180deg);
+}
+
+/* Front & Back Sides */
+.flashcard-face {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 1px solid var(--border-color);
+}
+
+.flashcard-front {
+  background: linear-gradient(135deg, var(--bg-surface-elevated) 0%, var(--bg-surface) 100%);
+  color: var(--text-main);
+}
+
+.flashcard-back {
+  background: linear-gradient(135deg, var(--primary-light) 0%, var(--bg-surface) 100%);
+  color: var(--text-main);
+  transform: rotateY(180deg);
+  border-color: var(--primary);
+}
+
+.card-header-tag {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--primary);
+}
+
+.card-flip-prompt {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.card-body-text {
+  font-size: 0.92rem;
+  line-height: 1.5;
+  font-weight: 500;
+  text-align: left;
+  overflow-y: auto;
+  max-height: 120px;
+}
+
+.card-footer-tip {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+/* --------------------------------------------------------------------------
+   13. Modals (Create Notebook / Dialogs)
+   -------------------------------------------------------------------------- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: fadeIn 0.2s ease;
+}
+
+.modal-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 440px;
+  box-shadow: var(--card-shadow-hover);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalScale 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalScale {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.1rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.modal-close-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.modal-close-btn:hover {
+  background: var(--bg-surface-alt);
+  color: var(--text-main);
+}
+
+.modal-body {
+  padding: 1.25rem;
+}
+
+.modal-label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.4rem;
+}
+
+.modal-input {
+  width: 100%;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-alt);
+  color: var(--text-main);
+  font-family: var(--font-main);
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.modal-input:focus {
+  border-color: var(--border-focus);
+}
+
+.color-palette {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+
+.color-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+
+.color-dot:hover {
+  transform: scale(1.15);
+}
+
+.color-dot.active {
+  border-color: var(--text-main);
+  transform: scale(1.15);
+  box-shadow: 0 0 0 2px var(--bg-surface);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.85rem 1.25rem;
+  background: var(--bg-surface-alt);
+  border-top: 1px solid var(--border-color);
+}
+
+/* --------------------------------------------------------------------------
+   14. Footer
+   -------------------------------------------------------------------------- */
+.app-footer {
+  margin-top: auto;
+  background-color: var(--bg-surface);
+  border-top: 1px solid var(--border-color);
+  padding: 0.65rem 1.5rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.footer-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.footer-privacy-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.security-dot {
+  width: 6px;
+  height: 6px;
+  background-color: var(--success);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.footer-tags {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.tech-tag {
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+   15. Utilities & Animations
+   -------------------------------------------------------------------------- */
+.hidden {
+  display: none !important;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Custom Scrollbar for sleek appearance */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   16. Responsive Layout (Mobile & Tablet)
+   -------------------------------------------------------------------------- */
+@media (max-width: 960px) {
+  .app-header {
+    padding: 0.75rem 1rem;
+  }
+
+  .header-badges .privacy-badge span:last-child {
+    display: none; /* Keep icon & pulse on small screens */
+  }
+
+  .app-sidebar {
+    position: fixed;
+    left: 0;
+    top: 60px;
+    bottom: 0;
+    z-index: 45;
+    box-shadow: var(--card-shadow-hover);
+  }
+
+  .app-sidebar.collapsed {
+    transform: translateX(-100%);
+    margin-left: 0;
+  }
+
+  .study-workspace {
+    grid-template-columns: 1fr;
+    padding: 0.85rem;
+    gap: 1rem;
+  }
+
+  .panel {
+    height: auto;
+    min-height: 480px;
+  }
+
+  .footer-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
