@@ -51,6 +51,43 @@
         <span>100% Offline &amp; Private (Runs Locally)</span>
       </div>
 
+      <!-- ============================================================
+           POMODORO STUDY TIMER WIDGET
+           ============================================================ -->
+      <div id="pomodoro-widget" class="pomo-idle" title="Pomodoro Study Timer">
+        <div id="pomodoro-ring-container">
+          <svg id="pomodoro-svg" viewBox="0 0 44 44" width="44" height="44">
+            <circle id="pomodoro-track"    cx="22" cy="22" r="18" fill="none" stroke-width="3"/>
+            <circle id="pomodoro-progress" cx="22" cy="22" r="18" fill="none" stroke-width="3"
+              stroke-linecap="round"
+              style="transform:rotate(-90deg);transform-origin:50% 50%;stroke-dasharray:113.1;stroke-dashoffset:0;transition:stroke-dashoffset 1s linear;"/>
+          </svg>
+          <div id="pomodoro-time-overlay">
+            <span id="pomodoro-display">25:00</span>
+          </div>
+        </div>
+        <div id="pomodoro-info-column">
+          <span id="pomodoro-session-label">Focus</span>
+          <div id="pomodoro-session-dots">
+            <span class="pomo-dot"></span>
+            <span class="pomo-dot"></span>
+            <span class="pomo-dot"></span>
+            <span class="pomo-dot"></span>
+          </div>
+        </div>
+        <div id="pomodoro-controls">
+          <button id="pomodoro-btn-start-pause" class="icon-button" aria-label="Start timer" title="Start / Pause">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </button>
+          <button id="pomodoro-btn-reset" class="icon-button" aria-label="Reset timer" title="Reset">
+            <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+          </button>
+          <button id="pomodoro-btn-skip" class="icon-button" aria-label="Skip session" title="Skip to next">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+      </div>
+
       <!-- Theme Switcher -->
       <button id="themeToggleBtn" class="icon-button" aria-label="Toggle dark/light theme" title="Toggle theme">
         <span class="theme-icon light-icon">☀️</span>
@@ -128,6 +165,8 @@
           <span class="notes-list-title">LECTURE NOTES</span>
           <span id="notesCountBadge" class="notes-count-badge">0 notes</span>
         </div>
+        <!-- Feature 2: Tag Filter Cloud -->
+        <div id="sidebarTagCloud" class="sidebar-tags-filter"></div>
         <div id="notesListContainer" class="notes-list-container">
           <!-- Dynamically populated from IndexedDB -->
         </div>
@@ -185,6 +224,10 @@
               <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
               Load Sample
             </button>
+            <button id="openTemplatesBtn" class="btn btn-secondary btn-sm" title="Insert a structured note template">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+              Templates
+            </button>
             <button id="clearNotesBtn" class="btn btn-ghost btn-sm" title="Clear active note text">
               <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
               Clear
@@ -208,6 +251,13 @@
             maxlength="120"
             title="Click to rename note"
           />
+          <!-- Note Tags Row -->
+          <div class="note-tags-row" id="noteTagsRow">
+            <div id="noteTagsList" class="note-tags-list"></div>
+            <div class="note-tags-input-wrap">
+              <input type="text" id="noteTagInput" class="note-tag-input" placeholder="+ add tag (e.g. #exam)" maxlength="30" />
+            </div>
+          </div>
         </div>
 
         <!-- Main Input Textarea with Drag & Drop Overlay -->
@@ -278,6 +328,16 @@
               Study Flashcards
               <span id="flashcardCountBadge" class="badge-mini">0</span>
             </button>
+            <button id="tabQuiz" class="tab-btn" role="tab" aria-selected="false" data-tab="quizView">
+              <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="10"></circle><polygon points="12 8 8 12 12 16 16 12 12 8"></polygon></svg>
+              Practice Quiz
+              <span id="quizCountBadge" class="badge-mini">0</span>
+            </button>
+            <button id="tabReview" class="tab-btn" role="tab" aria-selected="false" data-tab="reviewView">
+              <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+              Review
+              <span id="reviewDueBadge" class="badge-mini badge-danger hidden">0</span>
+            </button>
           </nav>
 
           <div class="panel-actions">
@@ -340,12 +400,90 @@
             <div id="activeFlashcardsContent" class="flashcards-wrapper hidden">
               <div class="flashcards-top-bar">
                 <span class="flashcard-instruction">💡 Click any card to flip between Question and Answer</span>
-                <button id="flipAllCardsBtn" class="btn btn-ghost btn-sm">Flip All</button>
+                <div style="display:flex;gap:0.5rem;">
+                  <button id="reviewModeBtn" class="btn btn-secondary btn-sm" title="Full-screen focused card review">🎴 Review Mode</button>
+                  <button id="flipAllCardsBtn" class="btn btn-ghost btn-sm">Flip All</button>
+                </div>
               </div>
               <div id="flashcardsGrid" class="flashcards-grid">
                 <!-- Dynamically populated 3D flip-cards -->
               </div>
             </div>
+          </div>
+
+          <!-- TAB 4: INTERACTIVE PRACTICE QUIZ (MCQ) VIEW -->
+          <div id="quizView" class="tab-pane" role="tabpanel">
+            <div id="emptyQuizState" class="empty-state">
+              <div class="empty-state-icon">🎯</div>
+              <h3>Practice Exam Not Ready</h3>
+              <p>Click <strong>"Summarize Notes"</strong> on your lecture material to automatically generate active-recall multiple-choice practice questions with instant scoring.</p>
+            </div>
+
+            <div id="activeQuizContent" class="quiz-wrapper hidden">
+              <div class="quiz-top-bar">
+                <div class="quiz-stats-badge">
+                  <span id="quizScoreText">Score: 0 / 0 (0%)</span>
+                </div>
+                <div class="quiz-actions-group">
+                  <button id="retakeQuizBtn" class="btn btn-ghost btn-sm" title="Reset and retake practice questions">
+                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+                    Retake Quiz
+                  </button>
+                </div>
+              </div>
+
+              <!-- Dynamically populated Quiz Questions -->
+              <div id="quizQuestionsContainer" class="quiz-questions-list">
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 5: SPACED REPETITION REVIEW VIEW -->
+          <div id="reviewView" class="tab-pane" role="tabpanel">
+
+            <!-- Empty: no cards due -->
+            <div id="reviewEmptyState" class="empty-state">
+              <div class="empty-state-icon">🎉</div>
+              <h3>You're all caught up!</h3>
+              <p>No flashcards are due for review right now. Keep studying and check back tomorrow.</p>
+            </div>
+
+            <!-- Active session -->
+            <div id="reviewSession" class="review-session hidden">
+              <div class="review-progress-wrap">
+                <span id="reviewProgressText" class="review-progress-text">Card 1 of 1 due today</span>
+                <progress id="reviewProgressBar" class="review-progress-bar" max="1" value="1"></progress>
+              </div>
+              <div id="reviewCard" class="review-card">
+                <div class="review-card-label">Question</div>
+                <div id="reviewQuestion" class="review-question-text"></div>
+                <div id="reviewAnswer"   class="review-answer-text hidden"></div>
+                <button id="reviewShowBtn" class="btn btn-primary review-show-btn">Show Answer</button>
+              </div>
+              <div id="reviewRatingRow" class="review-rating-row hidden">
+                <button id="btnAgain" class="btn review-rating-btn review-btn-again">
+                  <span>😓</span> Again
+                  <span class="review-interval-hint">&lt;1d</span>
+                </button>
+                <button id="btnGood" class="btn review-rating-btn review-btn-good">
+                  <span>👍</span> Good
+                  <span class="review-interval-hint">~6d</span>
+                </button>
+                <button id="btnEasy" class="btn review-rating-btn review-btn-easy">
+                  <span>⚡</span> Easy
+                  <span class="review-interval-hint">~10d</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Complete screen -->
+            <div id="reviewComplete" class="review-complete hidden">
+              <div class="review-complete-icon">🏆</div>
+              <h3 id="reviewCompleteTitle">Session Complete!</h3>
+              <p id="reviewCompleteStats" class="review-complete-stats"></p>
+              <button id="reviewRestartBtn" class="btn btn-primary" style="margin-top:1rem;">Review Again</button>
+            </div>
+
           </div>
 
         </div>
@@ -406,6 +544,77 @@
       </div>
     </div>
   </footer>
+
+  <!-- ========================================================
+       MODAL: NOTE TEMPLATES
+       ======================================================== -->
+  <div id="templatesModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="templatesModalTitle">
+    <div class="modal-card modal-card-wide">
+      <div class="modal-header">
+        <h3 id="templatesModalTitle">📋 Note Templates</h3>
+        <button id="closeTemplatesModalBtn" class="modal-close-btn" aria-label="Close templates">✕</button>
+      </div>
+      <div class="modal-body templates-grid">
+        <button class="template-card" data-template="cornell">
+          <div class="template-card-icon">📐</div>
+          <div class="template-card-title">Cornell Notes</div>
+          <div class="template-card-desc">Structured cues, notes & summary sections</div>
+        </button>
+        <button class="template-card" data-template="lecture">
+          <div class="template-card-icon">🎓</div>
+          <div class="template-card-title">Lecture Notes</div>
+          <div class="template-card-desc">Topic, key concepts, examples & questions</div>
+        </button>
+        <button class="template-card" data-template="research">
+          <div class="template-card-icon">🔬</div>
+          <div class="template-card-title">Research Paper</div>
+          <div class="template-card-desc">Abstract, methodology, findings & gaps</div>
+        </button>
+        <button class="template-card" data-template="meeting">
+          <div class="template-card-icon">🗒️</div>
+          <div class="template-card-title">Meeting Notes</div>
+          <div class="template-card-desc">Attendees, agenda, decisions & action items</div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       MODAL: FLASHCARD FOCUSED REVIEW MODE
+       ======================================================== -->
+  <div id="flashcardReviewModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="fcReviewTitle">
+    <div class="modal-card modal-card-review">
+      <div class="modal-header">
+        <h3 id="fcReviewTitle">🎴 Flashcard Review Mode</h3>
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+          <span id="fcReviewCounter" class="fc-review-counter">1 / 1</span>
+          <button id="closeFcReviewBtn" class="modal-close-btn" aria-label="Close review">✕</button>
+        </div>
+      </div>
+      <div class="modal-body fc-review-body">
+        <div class="fc-review-progress-wrap">
+          <progress id="fcReviewProgressBar" class="review-progress-bar" max="1" value="0"></progress>
+        </div>
+        <div id="fcReviewCard" class="fc-review-card" tabindex="0" aria-label="Flashcard — click to flip">
+          <div class="fc-review-inner">
+            <div class="fc-review-face fc-review-front">
+              <div class="fc-review-label">Card — Click to flip 🔄</div>
+              <div id="fcReviewQuestion" class="fc-review-text"></div>
+            </div>
+            <div class="fc-review-face fc-review-back">
+              <div class="fc-review-label">Answer ✓</div>
+              <div id="fcReviewAnswer" class="fc-review-text"></div>
+            </div>
+          </div>
+        </div>
+        <div class="fc-review-nav">
+          <button id="fcReviewPrev" class="btn btn-secondary">← Prev</button>
+          <button id="fcReviewFlip" class="btn btn-ghost">Flip Card</button>
+          <button id="fcReviewNext" class="btn btn-primary">Next →</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Main JavaScript Orchestrator -->
   <script src="script.js" type="module"></script>

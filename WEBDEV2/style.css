@@ -1199,7 +1199,170 @@ body {
 }
 
 /* --------------------------------------------------------------------------
-   13. Modals (Create Notebook / Dialogs)
+   13. Tab 4: Interactive Practice Quiz (MCQ Exam)
+   -------------------------------------------------------------------------- */
+.quiz-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.quiz-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.quiz-stats-badge {
+  background: var(--primary-light);
+  color: var(--primary);
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--radius-full);
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+
+.quiz-questions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.quiz-card {
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition: border-color var(--transition-fast);
+}
+
+.quiz-card:hover {
+  border-color: var(--border-focus);
+}
+
+.quiz-question-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.quiz-q-num {
+  background: var(--primary);
+  color: #ffffff;
+  min-width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.quiz-q-text {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.5;
+}
+
+.quiz-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.quiz-option-btn {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+  font-family: var(--font-main);
+  font-size: 0.88rem;
+  color: var(--text-main);
+}
+
+.quiz-option-btn:hover:not(:disabled) {
+  background: var(--bg-surface-elevated);
+  border-color: var(--primary);
+  transform: translateX(3px);
+}
+
+.quiz-option-btn:disabled {
+  cursor: default;
+}
+
+.opt-prefix {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.quiz-option-btn.correct {
+  background: var(--success-light);
+  border-color: var(--success);
+  color: var(--success);
+  font-weight: 600;
+}
+
+.quiz-option-btn.correct .opt-prefix {
+  background: var(--success);
+  color: #ffffff;
+  border-color: var(--success);
+}
+
+.quiz-option-btn.incorrect {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.quiz-option-btn.incorrect .opt-prefix {
+  background: var(--danger);
+  color: #ffffff;
+  border-color: var(--danger);
+}
+
+.quiz-explanation {
+  background: var(--bg-surface);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+  font-size: 0.84rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  animation: fadeIn 0.25s ease;
+}
+
+.quiz-explanation strong {
+  color: var(--text-main);
+}
+
+/* --------------------------------------------------------------------------
+   14. Modals (Create Notebook / Dialogs)
    -------------------------------------------------------------------------- */
 .modal-overlay {
   position: fixed;
@@ -1404,6 +1567,543 @@ body {
 }
 
 /* --------------------------------------------------------------------------
+   FEATURE 1 — Spaced Repetition Review Tab
+   -------------------------------------------------------------------------- */
+.badge-danger {
+  background: var(--danger) !important;
+}
+
+.review-session {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 0.5rem 0;
+  height: 100%;
+}
+
+.review-progress-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.review-progress-text {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.review-progress-bar {
+  width: 100%;
+  height: 6px;
+  border-radius: var(--radius-full);
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  background: var(--bg-surface-alt);
+  overflow: hidden;
+}
+.review-progress-bar::-webkit-progress-bar  { background: var(--bg-surface-alt); border-radius: var(--radius-full); }
+.review-progress-bar::-webkit-progress-value{ background: linear-gradient(90deg, var(--primary), #06b6d4); border-radius: var(--radius-full); transition: width 0.4s ease; }
+.review-progress-bar::-moz-progress-bar     { background: linear-gradient(90deg, var(--primary), #06b6d4); border-radius: var(--radius-full); }
+
+.review-card {
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem 1.75rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 180px;
+  box-shadow: var(--card-shadow);
+}
+
+.review-card-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.review-question-text {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-main);
+  line-height: 1.6;
+  flex: 1;
+}
+
+.review-answer-text {
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1rem;
+  animation: fadeIn 0.25s ease;
+}
+
+.review-show-btn {
+  align-self: flex-start;
+}
+
+.review-rating-row {
+  display: flex;
+  gap: 0.75rem;
+  animation: fadeIn 0.2s ease;
+}
+
+.review-rating-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.75rem 0.5rem;
+  border-radius: var(--radius-md);
+  font-size: 0.88rem;
+  font-weight: 700;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.review-btn-again {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+.review-btn-again:hover { background: rgba(239, 68, 68, 0.2); border-color: var(--danger); transform: translateY(-2px); }
+
+.review-btn-good {
+  background: var(--primary-light);
+  color: var(--primary);
+  border-color: rgba(99, 102, 241, 0.25);
+}
+.review-btn-good:hover { background: rgba(99, 102, 241, 0.2); border-color: var(--primary); transform: translateY(-2px); }
+
+.review-btn-easy {
+  background: var(--success-light);
+  color: var(--success);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+.review-btn-easy:hover { background: rgba(16, 185, 129, 0.2); border-color: var(--success); transform: translateY(-2px); }
+
+.review-interval-hint {
+  font-size: 0.68rem;
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+.review-complete {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: 100%;
+  min-height: 280px;
+  gap: 0.5rem;
+  animation: fadeIn 0.3s ease;
+}
+
+.review-complete-icon {
+  font-size: 3rem;
+  margin-bottom: 0.5rem;
+}
+
+.review-complete h3 {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.review-complete-stats {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* --------------------------------------------------------------------------
+   FEATURE 2 — Note Tags
+   -------------------------------------------------------------------------- */
+.note-tags-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding-top: 0.4rem;
+  margin-top: 0.4rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.note-tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.note-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: var(--primary-light);
+  color: var(--primary-text);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: var(--radius-full);
+  padding: 0.15rem 0.5rem 0.15rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: default;
+  user-select: none;
+  animation: fadeIn 0.15s ease;
+}
+
+.note-tag-chip button {
+  border: none;
+  background: transparent;
+  color: var(--primary-text);
+  cursor: pointer;
+  font-size: 0.75rem;
+  line-height: 1;
+  padding: 0 0.1rem;
+  opacity: 0.6;
+  transition: opacity var(--transition-fast);
+}
+.note-tag-chip button:hover { opacity: 1; }
+
+.note-tags-input-wrap {
+  display: flex;
+  align-items: center;
+}
+
+.note-tag-input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-family: var(--font-main);
+  width: 140px;
+  transition: color var(--transition-fast);
+}
+.note-tag-input::placeholder { color: var(--text-muted); }
+.note-tag-input:focus { color: var(--text-main); }
+
+/* Tag filter chip in sidebar */
+.sidebar-tags-filter {
+  padding: 0.4rem 0.85rem 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.tag-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  padding: 0.1rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+.tag-filter-chip:hover { border-color: var(--primary); color: var(--primary); }
+.tag-filter-chip.active { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
+
+/* Note card tag indicators */
+.note-item-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  margin-top: 0.1rem;
+}
+
+.note-mini-tag {
+  font-size: 0.63rem;
+  font-weight: 600;
+  background: var(--primary-light);
+  color: var(--primary-text);
+  border-radius: var(--radius-full);
+  padding: 0.05rem 0.35rem;
+}
+
+/* --------------------------------------------------------------------------
+   FEATURE 3 — Pomodoro Timer Widget
+   -------------------------------------------------------------------------- */
+#pomodoro-widget {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 0.3rem 0.6rem 0.3rem 0.5rem;
+  transition: all var(--transition-fast);
+  position: relative;
+  user-select: none;
+}
+
+#pomodoro-ring-container {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+
+#pomodoro-track {
+  stroke: var(--border-color);
+}
+
+/* Focus: indigo stroke */
+#pomodoro-widget.pomo-idle    #pomodoro-progress,
+#pomodoro-widget.pomo-running #pomodoro-progress,
+#pomodoro-widget.pomo-paused  #pomodoro-progress {
+  stroke: var(--primary);
+}
+/* Break: cyan */
+#pomodoro-widget.pomo-break     #pomodoro-progress { stroke: #06b6d4; }
+#pomodoro-widget.pomo-long-break #pomodoro-progress { stroke: var(--success); }
+
+#pomodoro-time-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#pomodoro-display {
+  font-size: 0.6rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: var(--text-main);
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+#pomodoro-info-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 56px;
+}
+
+#pomodoro-session-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1;
+}
+
+#pomodoro-session-dots {
+  display: flex;
+  gap: 3px;
+}
+
+.pomo-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--border-color);
+  display: inline-block;
+  transition: background var(--transition-fast);
+}
+
+.pomo-dot.pomo-dot--filled {
+  background: var(--primary);
+}
+
+#pomodoro-widget.pomo-break .pomo-dot.pomo-dot--filled,
+#pomodoro-widget.pomo-long-break .pomo-dot.pomo-dot--filled {
+  background: #06b6d4;
+}
+
+#pomodoro-controls {
+  display: flex;
+  gap: 0.25rem;
+}
+
+/* Smaller icon buttons inside widget */
+#pomodoro-controls .icon-button {
+  width: 30px;
+  height: 30px;
+  font-size: 0.75rem;
+}
+
+/* Flash animation on session complete */
+@keyframes pomo-flash {
+  0%, 100% { opacity: 1; }
+  25%       { opacity: 0.3; }
+  50%       { opacity: 1; }
+  75%       { opacity: 0.3; }
+}
+
+#pomodoro-widget.pomo-flash {
+  animation: pomo-flash 0.9s ease;
+}
+
+/* --------------------------------------------------------------------------
+   FEATURE 4 — Focused Flashcard Review Mode Modal
+   -------------------------------------------------------------------------- */
+.modal-card-review {
+  max-width: 560px;
+}
+
+.fc-review-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-top: 0.75rem;
+}
+
+.fc-review-progress-wrap {
+  margin-bottom: 0.25rem;
+}
+
+.fc-review-counter {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--primary);
+  background: var(--primary-light);
+  padding: 0.15rem 0.6rem;
+  border-radius: var(--radius-full);
+}
+
+.fc-review-card {
+  min-height: 220px;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  perspective: 1200px;
+  outline: none;
+}
+
+.fc-review-inner {
+  position: relative;
+  width: 100%;
+  min-height: 220px;
+  transform-style: preserve-3d;
+  transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: var(--radius-lg);
+}
+
+.fc-review-card.is-flipped .fc-review-inner {
+  transform: rotateY(180deg);
+}
+
+.fc-review-face {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  min-height: 220px;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.fc-review-front {
+  background: linear-gradient(135deg, var(--bg-surface-elevated) 0%, var(--bg-surface) 100%);
+}
+
+.fc-review-back {
+  background: linear-gradient(135deg, var(--primary-light) 0%, var(--bg-surface) 100%);
+  border-color: var(--primary);
+  transform: rotateY(180deg);
+}
+
+.fc-review-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.fc-review-text {
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--text-main);
+  overflow-y: auto;
+  flex: 1;
+}
+
+.fc-review-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding-top: 0.25rem;
+}
+
+/* --------------------------------------------------------------------------
+   FEATURE 5 — Note Templates Modal
+   -------------------------------------------------------------------------- */
+.modal-card-wide {
+  max-width: 540px;
+}
+
+.templates-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+}
+
+.template-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.1rem;
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--transition-fast);
+  font-family: var(--font-main);
+}
+
+.template-card:hover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+  transform: translateY(-2px);
+  box-shadow: var(--card-shadow-hover);
+}
+
+.template-card-icon {
+  font-size: 1.5rem;
+}
+
+.template-card-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.template-card-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* --------------------------------------------------------------------------
    16. Responsive Layout (Mobile & Tablet)
    -------------------------------------------------------------------------- */
 @media (max-width: 960px) {
@@ -1413,6 +2113,11 @@ body {
 
   .header-badges .privacy-badge span:last-child {
     display: none; /* Keep icon & pulse on small screens */
+  }
+
+  /* Hide pomodoro info column on small screens, keep ring + controls */
+  #pomodoro-info-column {
+    display: none;
   }
 
   .app-sidebar {
@@ -1443,5 +2148,13 @@ body {
   .footer-content {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .review-rating-row {
+    flex-wrap: wrap;
+  }
+
+  .templates-grid {
+    grid-template-columns: 1fr;
   }
 }

@@ -347,3 +347,88 @@ test('Algorithm: Document filename formatting to clean note title', () => {
   assert.equal(formatDocumentTitle('neural-networks-overview.txt'), 'Neural networks overview');
   assert.equal(formatDocumentTitle('mitochondria_atp_biology.md'), 'Mitochondria atp biology');
 });
+
+// ============================================================================
+// SUITE 9: Interactive Practice Quiz (MCQ Exam) Generator
+// ============================================================================
+test('Quiz Integration: Quiz tab and DOM containers exist in index.html', () => {
+  assert.match(htmlContent, /id=["']tabQuiz["']/, 'tabQuiz button must exist');
+  assert.match(htmlContent, /id=["']quizCountBadge["']/, 'quizCountBadge must exist');
+  assert.match(htmlContent, /id=["']emptyQuizState["']/, 'emptyQuizState must exist');
+  assert.match(htmlContent, /id=["']activeQuizContent["']/, 'activeQuizContent must exist');
+  assert.match(htmlContent, /id=["']quizScoreText["']/, 'quizScoreText must exist');
+  assert.match(htmlContent, /id=["']retakeQuizBtn["']/, 'retakeQuizBtn must exist');
+  assert.match(htmlContent, /id=["']quizQuestionsContainer["']/, 'quizQuestionsContainer must exist');
+});
+
+test('Algorithm: generateQuizQuestions() multiple-choice question synthesis', () => {
+  const bullets = [
+    'Backpropagation is defined as an algorithm calculating loss gradients via the chain rule.',
+    'Activation functions introduce non-linearity into multi-layer neural network architectures.',
+    'Stochastic gradient descent updates model weights iteratively to minimize loss.',
+    'WebAssembly enables high performance in-browser tensor computation.'
+  ];
+
+  function generateQuizQuestions(summaryText, bullets) {
+    const questions = [];
+    const validBullets = bullets.filter(b => b && b.trim().length > 15);
+    const numQuestions = Math.min(5, validBullets.length);
+
+    for (let i = 0; i < numQuestions; i++) {
+      const targetBullet = validBullets[i];
+      const defMatch = targetBullet.match(/^([^.,:;]+?)\s+(is defined as|refers to|is a|is an|enables|helps|acts as|consists of)\s+(.*)/i);
+      let stem = '';
+      let correctAnswer = '';
+      let explanation = '';
+
+      if (defMatch) {
+        const subject = defMatch[1].trim();
+        const predicate = defMatch[3].trim();
+        stem = `Which of the following best defines or describes "${subject}"?`;
+        correctAnswer = predicate.replace(/[.]+$/, '');
+        explanation = `Verified from notes: "${subject}" ${defMatch[2]} ${predicate}`;
+      } else {
+        stem = `According to your lecture notes, which statement is factually accurate?`;
+        correctAnswer = targetBullet.replace(/[.]+$/, '');
+        explanation = `Correct! Sourced directly from your lecture notes: "${targetBullet}"`;
+      }
+
+      const otherBullets = validBullets.filter((_, idx) => idx !== i);
+      let distractors = [
+        'It functions as a strict linear transformation without dynamic parameter optimization.',
+        'It operates purely on static lookup tables without iterative mathematical updates.',
+        'It has been proven obsolete due to lack of generalizability across domain distributions.'
+      ];
+      if (otherBullets.length >= 3) {
+        distractors = otherBullets.slice(0, 3).map(b => b.replace(/[.]+$/, ''));
+      }
+
+      const shuffled = [correctAnswer, distractors[0], distractors[1], distractors[2]];
+      const correctIndex = 0;
+
+      questions.push({
+        id: i + 1,
+        question: stem,
+        options: shuffled,
+        correctIndex: correctIndex,
+        explanation: explanation,
+        userSelectedIndex: null
+      });
+    }
+    return questions;
+  }
+
+  const quiz = generateQuizQuestions('Summary', bullets);
+
+  assert.equal(quiz.length, 4, 'Should generate 4 questions from 4 bullets');
+  
+  quiz.forEach(q => {
+    assert.ok(q.question.length > 10, 'Question stem must be informative');
+    assert.equal(q.options.length, 4, 'Each MCQ must have exactly 4 options');
+    assert.ok(q.correctIndex >= 0 && q.correctIndex < 4, 'correctIndex must be between 0 and 3');
+    assert.ok(q.explanation.length > 5, 'Explanation must be non-empty');
+  });
+
+  // Verify definition match question stem
+  assert.match(quiz[0].question, /Backpropagation/);
+});

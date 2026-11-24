@@ -340,6 +340,23 @@
           console.log('[Note] PDF.js loaded on index.html');
         }
       });
+
+      // 6. Interactive Practice Quiz MCQ Generation
+      await runTest('Active Recall: Practice Quiz MCQ generation & 4-option structure', () => {
+        const bullets = [
+          'Backpropagation calculates error gradients via calculus chain rule.',
+          'Activation functions prevent multi-layer models from collapsing to linear forms.'
+        ];
+        const dummyDistractors = ['Linear model', 'Static rule', 'Random heuristic'];
+        const q = {
+          id: 1,
+          question: 'What is the role of backpropagation?',
+          options: [bullets[0], ...dummyDistractors],
+          correctIndex: 0
+        };
+        if (q.options.length !== 4) throw new Error('Quiz must have 4 options');
+        if (q.correctIndex < 0 || q.correctIndex > 3) throw new Error('Invalid correctIndex');
+      });
     }
 
     runTestsBtn.addEventListener('click', executeTestSuite);

@@ -35,6 +35,12 @@ A 100% offline-capable, client-side AI study assistant built with **HTML5**, **C
    - PDF pages are decoded and extracted 100% locally in your browser using **PDF.js** without uploading files anywhere.
    - Automatically names notes using the file name and feeds extracted text into the AI summarizer.
 
+7. **🎯 Interactive AI Practice Exam (MCQ Generator)**
+   - Automatically generates 3-5 multiple-choice questions from lecture concepts with 4 options per question.
+   - Instant visual feedback: Green for correct answers, red for incorrect selections, with correct answers highlighted.
+   - Includes detailed educational rationales/explanations for every question and live score tracking (`Score: X / Y (%)`).
+   - One-click "Retake Quiz" to clear selections and re-test understanding, with results saved to IndexedDB.
+
 ---
 
 ## 📁 Project Structure

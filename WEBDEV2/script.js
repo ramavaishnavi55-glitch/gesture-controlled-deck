@@ -244,6 +244,56 @@ const activeFlashcardsContent = document.getElementById('activeFlashcardsContent
 const flashcardsGrid = document.getElementById('flashcardsGrid');
 const flipAllCardsBtn = document.getElementById('flipAllCardsBtn');
 
+// Quiz View Selectors
+const tabQuiz = document.getElementById('tabQuiz');
+const quizCountBadge = document.getElementById('quizCountBadge');
+const emptyQuizState = document.getElementById('emptyQuizState');
+const activeQuizContent = document.getElementById('activeQuizContent');
+const quizScoreText = document.getElementById('quizScoreText');
+const retakeQuizBtn = document.getElementById('retakeQuizBtn');
+const quizQuestionsContainer = document.getElementById('quizQuestionsContainer');
+
+// Feature 1: Spaced Repetition Review Tab
+const tabReview = document.getElementById('tabReview');
+const reviewDueBadge = document.getElementById('reviewDueBadge');
+const reviewEmptyState = document.getElementById('reviewEmptyState');
+const reviewSession = document.getElementById('reviewSession');
+const reviewProgressText = document.getElementById('reviewProgressText');
+const reviewProgressBar = document.getElementById('reviewProgressBar');
+const reviewQuestion = document.getElementById('reviewQuestion');
+const reviewAnswer = document.getElementById('reviewAnswer');
+const reviewShowBtn = document.getElementById('reviewShowBtn');
+const reviewRatingRow = document.getElementById('reviewRatingRow');
+const btnAgain = document.getElementById('btnAgain');
+const btnGood = document.getElementById('btnGood');
+const btnEasy = document.getElementById('btnEasy');
+const reviewComplete = document.getElementById('reviewComplete');
+const reviewCompleteTitle = document.getElementById('reviewCompleteTitle');
+const reviewCompleteStats = document.getElementById('reviewCompleteStats');
+const reviewRestartBtn = document.getElementById('reviewRestartBtn');
+
+// Feature 2: Note Tags
+const noteTagsList = document.getElementById('noteTagsList');
+const noteTagInput = document.getElementById('noteTagInput');
+
+// Feature 4: Focused Flashcard Review Modal
+const reviewModeBtn = document.getElementById('reviewModeBtn');
+const flashcardReviewModal = document.getElementById('flashcardReviewModal');
+const closeFcReviewBtn = document.getElementById('closeFcReviewBtn');
+const fcReviewCard = document.getElementById('fcReviewCard');
+const fcReviewQuestion = document.getElementById('fcReviewQuestion');
+const fcReviewAnswer = document.getElementById('fcReviewAnswer');
+const fcReviewCounter = document.getElementById('fcReviewCounter');
+const fcReviewProgressBar = document.getElementById('fcReviewProgressBar');
+const fcReviewPrev = document.getElementById('fcReviewPrev');
+const fcReviewNext = document.getElementById('fcReviewNext');
+const fcReviewFlip = document.getElementById('fcReviewFlip');
+
+// Feature 5: Note Templates
+const openTemplatesBtn = document.getElementById('openTemplatesBtn');
+const templatesModal = document.getElementById('templatesModal');
+const closeTemplatesModalBtn = document.getElementById('closeTemplatesModalBtn');
+
 const copySummaryBtn = document.getElementById('copySummaryBtn');
 const copyBtnText = document.getElementById('copyBtnText');
 const downloadNotesBtn = document.getElementById('downloadNotesBtn');
@@ -266,10 +316,18 @@ const state = {
   activeNoteId: null,
   activeNote: null,
   searchQuery: '',
+  tagFilter: null,           // Feature 2: active tag filter
   selectedModalColor: '#6366f1',
   allFlippedState: false,
   autoSaveTimer: null,
-  isSummarizing: false
+  isSummarizing: false,
+  // Feature 1: Spaced Repetition
+  reviewQueue: [],
+  reviewQueueIndex: 0,
+  reviewSessionStats: { total: 0, correct: 0, forgotten: 0 },
+  // Feature 4: Focused Review Mode
+  fcReviewCards: [],
+  fcReviewIndex: 0
 };
 
 const STORAGE_KEYS = {
@@ -622,7 +680,15 @@ async function reloadNotesForActiveNotebook() {
     );
   }
 
+  // Feature 2: apply tag filter
+  if (state.tagFilter) {
+    filteredNotes = filteredNotes.filter(n =>
+      Array.isArray(n.tags) && n.tags.map(t => t.toLowerCase()).includes(state.tagFilter.toLowerCase())
+    );
+  }
+
   renderNotesList(filteredNotes);
+  renderSidebarTagCloud(notes);
 
   // If no note is selected, or selected note was deleted, select the first one
   const targetNote = notes.find(n => n.id === state.activeNoteId);
@@ -669,6 +735,10 @@ function renderNotesList(notesToRender = state.notes) {
         </button>
       </div>
       <p class="note-item-snippet">${previewText}</p>
+      ${Array.isArray(note.tags) && note.tags.length > 0 ? `
+        <div class="note-item-tags">
+          ${note.tags.slice(0, 3).map(t => `<span class="note-mini-tag">${escapeHtml(t)}</span>`).join('')}
+        </div>` : ''}
       <div class="note-item-meta">
         <span>${formattedDate}</span>
         <span class="note-item-meta-tag">${note.wordCount || 0} words</span>
@@ -763,6 +833,7 @@ async function selectNote(noteId) {
   notesInput.value = note.content || '';
   summaryLengthSelect.value = note.summaryLength || 'medium';
   updateLiveCounters();
+  renderNoteTags(note.tags || []);
 
   // Populate Right Panel (Summary, Bullets, Flashcards)
   if (note.summary && note.summary.trim().length > 0) {
@@ -779,6 +850,7 @@ async function selectNote(noteId) {
 
     renderBulletPoints(note.bullets || []);
     renderFlashcards(note.flashcards || []);
+    renderQuiz(note.quiz || []);
   } else {
     // Show empty states
     emptySummaryState.classList.remove('hidden');
@@ -793,6 +865,12 @@ async function selectNote(noteId) {
     activeFlashcardsContent.classList.add('hidden');
     flashcardsGrid.innerHTML = '';
     flashcardCountBadge.textContent = '0';
+
+    emptyQuizState.classList.remove('hidden');
+    activeQuizContent.classList.add('hidden');
+    quizQuestionsContainer.innerHTML = '';
+    quizCountBadge.textContent = '0';
+    quizScoreText.textContent = 'Score: 0 / 0 (0%)';
   }
 }
 
@@ -850,6 +928,7 @@ async function flushActiveNoteSave() {
   state.activeNote.content = currentContent;
   state.activeNote.wordCount = wordCount;
   state.activeNote.summaryLength = summaryLengthSelect.value;
+  state.activeNote.tags = state.activeNote.tags || [];
   state.activeNote.updatedAt = Date.now();
 
   await dbPut(STORES.NOTES, state.activeNote);
@@ -960,15 +1039,20 @@ async function handleGenerationComplete(summaryText) {
   const bulletPoints = extractBulletPoints(summaryText);
   renderBulletPoints(bulletPoints);
 
-  // 3. Generate and Render Flashcards
+  // 3. Generate and Render Flashcards (Concept Recall & Definitions)
   const flashcards = generateFlashcards(summaryText, bulletPoints);
   renderFlashcards(flashcards);
 
-  // 4. Save directly into Active Note in IndexedDB
+  // 4. Generate and Render Practice Quiz (Exam Questions: Scenarios, Constraints & Problem-Solving)
+  const quiz = generateQuizQuestions(summaryText, bulletPoints, notesInput.value);
+  renderQuiz(quiz);
+
+  // 5. Save directly into Active Note in IndexedDB
   if (state.activeNote) {
     state.activeNote.summary = summaryText;
     state.activeNote.bullets = bulletPoints;
     state.activeNote.flashcards = flashcards;
+    state.activeNote.quiz = quiz;
     state.activeNote.summaryLength = summaryLengthSelect.value;
     state.activeNote.updatedAt = Date.now();
     await dbPut(STORES.NOTES, state.activeNote);
@@ -1012,31 +1096,46 @@ function renderBulletPoints(bullets) {
 }
 
 /**
- * Transforms summary points into active-recall question/answer flashcards
+ * Transforms summary points into active-recall concept drill flashcards.
+ * Focuses strictly on core vocabulary, definitions, and high-yield memory anchors.
  */
 function generateFlashcards(summaryText, bullets) {
   const cards = [];
 
   bullets.forEach((sentence, index) => {
-    let question = '';
-    let answer = sentence;
+    let prompt = '';
+    let answer = sentence.trim();
 
-    // Active-recall heuristic parsing
-    const definitionMatch = sentence.match(/^([^.,:;]+?)\s+(is defined as|refers to|is a|is an|enables|helps|acts as|consists of)\s+(.*)/i);
+    // Active-recall heuristic parsing for flashcard drill
+    const defMatch = sentence.match(/^([^.,:;]+?)\s+(is defined as|refers to|is a|is an|enables|helps|acts as|consists of)\s+(.*)/i);
+    const purposeMatch = sentence.match(/^([^.,:;]+?)\s+(is used to|is designed to|serves to|functions to|aims to|empowers)\s+(.*)/i);
 
-    if (definitionMatch) {
-      const subject = definitionMatch[1].trim();
-      question = `What is the role and definition of "${subject}"?`;
+    if (defMatch) {
+      const subject = defMatch[1].trim();
+      prompt = `Concept Drill: ${subject}`;
+      answer = `${subject} ${defMatch[2]} ${defMatch[3].trim()}`;
+    } else if (purposeMatch) {
+      const subject = purposeMatch[1].trim();
+      prompt = `Core Function: ${subject}`;
+      answer = `${subject} ${purposeMatch[2]} ${purposeMatch[3].trim()}`;
     } else if (sentence.toLowerCase().includes('because') || sentence.toLowerCase().includes('due to')) {
-      question = `Key Cause & Effect (Concept #${index + 1}): Why does this process occur?`;
+      prompt = `Causal Factor: Takeaway #${index + 1}`;
+      answer = sentence;
     } else {
-      question = `Key Takeaway #${index + 1}: What core principle is explained here?`;
+      prompt = `Key Concept Recall #${index + 1}`;
+      answer = sentence;
     }
 
     cards.push({
       id: index + 1,
-      question: question,
-      answer: answer
+      question: prompt,
+      answer: answer,
+      // SM-2 spaced repetition fields (Feature 1)
+      easeFactor: 2.5,
+      interval: 1,
+      repetitions: 0,
+      nextReviewDate: Date.now(),
+      lastReviewed: null
     });
   });
 
@@ -1120,6 +1219,216 @@ function toggleFlipAllCards() {
     }
   });
   flipAllCardsBtn.textContent = state.allFlippedState ? 'Show Questions' : 'Flip All';
+}
+
+// ============================================================================
+// 10. INTERACTIVE PRACTICE QUIZ (MCQ) GENERATION & LOGIC
+// ============================================================================
+
+/**
+ * Generates 3-5 high-yield multiple choice exam questions.
+ * Designed specifically for critical thinking, scenario analysis, and constraint testing
+ * to ensure questions are completely distinct from flashcard definitions.
+ */
+function generateQuizQuestions(summaryText, bullets, rawNotesText = '') {
+  const questions = [];
+  const validBullets = (bullets || []).filter(b => b && b.trim().length > 15);
+  const rawSentences = (rawNotesText || '')
+    .split(/(?<=[.?!])\s+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 20);
+
+  if (validBullets.length === 0 && rawSentences.length === 0) return [];
+
+  // Combine unique concept statements across summary & raw lecture
+  const conceptPool = [...new Set([...validBullets, ...rawSentences])];
+  const numQuestions = Math.min(5, Math.max(3, validBullets.length));
+
+  // Pre-defined question formulation strategies
+  for (let i = 0; i < numQuestions; i++) {
+    const concept = conceptPool[i % conceptPool.length];
+    const defMatch = concept.match(/^([^.,:;]+?)\s+(is defined as|refers to|is a|is an|enables|helps|acts as|consists of|empowers)\s+(.*)/i);
+    const subject = defMatch ? defMatch[1].trim() : `Concept #${i + 1}`;
+    const detail = defMatch ? defMatch[3].trim().replace(/[.]+$/, '') : concept.replace(/[.]+$/, '');
+
+    let stem = '';
+    let correctAnswer = '';
+    let distractors = [];
+    let explanation = '';
+
+    // Cycle through 4 distinct exam-style question types
+    const questionType = i % 4;
+
+    switch (questionType) {
+      // TYPE 0: Architectural Failure / Consequence Analysis
+      case 0:
+        stem = `What is the primary architectural consequence or limitation if "${subject}" is absent or omitted?`;
+        correctAnswer = `The system loses the ability to ${detail.toLowerCase().replace(/^(to|that|which)\s+/, '')}.`;
+        distractors = [
+          `The parameter gradients immediately diverge to infinity during initialization.`,
+          `The system is forced to store entire matrix computations on remote external servers.`,
+          `It causes all intermediate hidden layers to execute without mathematical weights.`
+        ];
+        explanation = `Correct! According to your lecture notes, "${subject}" is essential because it ${defMatch ? defMatch[2] : 'enables'} ${detail}.`;
+        break;
+
+      // TYPE 1: Negative Constraint (Which statement is FALSE / NOT true?)
+      case 1:
+        stem = `Which of the following statements regarding "${subject}" is INCORRECT based on the lecture material?`;
+        correctAnswer = `It operates purely on static, hardcoded lookup tables without dynamic adaptation.`;
+        // Use 3 true statements from other concepts as distractors (since the user must pick the false statement!)
+        distractors = [
+          `It is actively utilized to enhance overall computational accuracy.`,
+          `It was designed to address structural bottlenecks in standard implementations.`,
+          `It functions as an integral mechanism within the described workflow.`
+        ];
+        explanation = `Correct! Claiming that "${subject}" relies on static lookup tables is false; your lecture notes explain that it ${detail}.`;
+        break;
+
+      // TYPE 2: Operational Mechanism / Process Execution
+      case 2:
+        stem = `During execution, through what mechanism does "${subject}" achieve its stated objective?`;
+        correctAnswer = `By ${detail.toLowerCase().replace(/^(is|to|by|that)\s+/, '')}.`;
+        distractors = [
+          `By randomly permuting network bias scalars until heuristic threshold criteria are met.`,
+          `By circumventing the non-linear transformation boundary via unsupervised clustering.`,
+          `By converting continuous action potentials into unquantized biological synapses.`
+        ];
+        explanation = `Correct! In the lecture notes, "${subject}" functions by ${detail}.`;
+        break;
+
+      // TYPE 3: Practical Application & System Motivation
+      case 3:
+      default:
+        stem = `In practical engineering scenarios, what primary technical motivation justifies implementing "${subject}"?`;
+        correctAnswer = `It directly facilitates: ${detail.toLowerCase().replace(/^(to|is|that)\s+/, '')}.`;
+        distractors = [
+          `It completely removes the theoretical requirement for optimization algorithms.`,
+          `It guarantees zero loss error regardless of dataset complexity or noise.`,
+          `It replaces multi-layer depth with a single collapsed linear transformation.`
+        ];
+        explanation = `Correct! The primary motivation for "${subject}" is that it ${defMatch ? defMatch[2] : 'empowers'} ${detail}.`;
+        break;
+    }
+
+    // Combine correct answer and distractors, then shuffle
+    const rawOptions = [correctAnswer, distractors[0], distractors[1], distractors[2]];
+    const shuffled = rawOptions.slice();
+    for (let j = shuffled.length - 1; j > 0; j--) {
+      const k = Math.floor(Math.random() * (j + 1));
+      [shuffled[j], shuffled[k]] = [shuffled[k], shuffled[j]];
+    }
+
+    const correctIndex = shuffled.indexOf(correctAnswer);
+
+    questions.push({
+      id: i + 1,
+      question: stem,
+      options: shuffled,
+      correctIndex: correctIndex,
+      explanation: explanation,
+      userSelectedIndex: null
+    });
+  }
+
+  return questions;
+}
+
+/**
+ * Renders the multiple-choice exam questions into the DOM
+ */
+function renderQuiz(quizData) {
+  if (!quizData || quizData.length === 0) {
+    emptyQuizState.classList.remove('hidden');
+    activeQuizContent.classList.add('hidden');
+    quizQuestionsContainer.innerHTML = '';
+    quizCountBadge.textContent = '0';
+    quizScoreText.textContent = 'Score: 0 / 0 (0%)';
+    return;
+  }
+
+  emptyQuizState.classList.add('hidden');
+  activeQuizContent.classList.remove('hidden');
+  quizQuestionsContainer.innerHTML = '';
+  quizCountBadge.textContent = quizData.length;
+
+  updateQuizScoreBadge(quizData);
+
+  const prefixes = ['A', 'B', 'C', 'D'];
+
+  quizData.forEach((q, qIndex) => {
+    const card = document.createElement('div');
+    card.className = 'quiz-card';
+    card.setAttribute('data-qid', q.id);
+
+    card.innerHTML = `
+      <div class="quiz-question-header">
+        <span class="quiz-q-num">${q.id}</span>
+        <h4 class="quiz-q-text">${escapeHtml(q.question)}</h4>
+      </div>
+      <div class="quiz-options-list">
+        ${q.options.map((opt, optIndex) => `
+          <button type="button" class="quiz-option-btn ${getOptionClass(q, optIndex)}" data-optindex="${optIndex}" ${q.userSelectedIndex !== null ? 'disabled' : ''}>
+            <span class="opt-prefix">${prefixes[optIndex]}</span>
+            <span class="opt-text">${escapeHtml(opt)}</span>
+          </button>
+        `).join('')}
+      </div>
+      <div class="quiz-explanation ${q.userSelectedIndex !== null ? '' : 'hidden'}">
+        <strong>💡 Explanation:</strong> ${escapeHtml(q.explanation)}
+      </div>
+    `;
+
+    // Bind option click handlers
+    const optionBtns = card.querySelectorAll('.quiz-option-btn');
+    optionBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const selectedIndex = parseInt(btn.getAttribute('data-optindex'), 10);
+        handleQuizAnswer(quizData, qIndex, selectedIndex);
+      });
+    });
+
+    quizQuestionsContainer.appendChild(card);
+  });
+}
+
+function getOptionClass(q, optIndex) {
+  if (q.userSelectedIndex === null) return '';
+  if (optIndex === q.correctIndex) return 'correct';
+  if (optIndex === q.userSelectedIndex) return 'incorrect';
+  return '';
+}
+
+function handleQuizAnswer(quizData, qIndex, selectedIndex) {
+  const q = quizData[qIndex];
+  if (q.userSelectedIndex !== null) return; // Prevent changing answer
+
+  q.userSelectedIndex = selectedIndex;
+  renderQuiz(quizData);
+
+  // Auto-save quiz progress into active note in IndexedDB
+  if (state.activeNote) {
+    state.activeNote.quiz = quizData;
+    dbPut(STORES.NOTES, state.activeNote);
+  }
+}
+
+function updateQuizScoreBadge(quizData) {
+  const answered = quizData.filter(q => q.userSelectedIndex !== null);
+  const correct = quizData.filter(q => q.userSelectedIndex === q.correctIndex).length;
+  const total = quizData.length;
+  const percent = total > 0 ? Math.round((correct / total) * 100) : 0;
+
+  quizScoreText.textContent = `Score: ${correct} / ${total} (${percent}%)`;
+}
+
+function handleRetakeQuiz() {
+  if (!state.activeNote || !state.activeNote.quiz) return;
+  state.activeNote.quiz.forEach(q => {
+    q.userSelectedIndex = null;
+  });
+  renderQuiz(state.activeNote.quiz);
+  dbPut(STORES.NOTES, state.activeNote);
 }
 
 // ============================================================================
@@ -1557,6 +1866,7 @@ function initEventListeners() {
       state.activeNote.summary = '';
       state.activeNote.bullets = [];
       state.activeNote.flashcards = [];
+      state.activeNote.quiz = [];
       await flushActiveNoteSave();
       selectNote(state.activeNote.id);
     }
@@ -1585,13 +1895,66 @@ Modern advancements have enabled edge AI, allowing neural models to execute dire
 
   // Tabs
   tabBtns.forEach(btn => {
-    btn.addEventListener('click', () => switchTab(btn));
+    btn.addEventListener('click', () => {
+      switchTab(btn);
+      // Feature 1: rebuild review queue when switching to Review tab
+      if (btn.getAttribute('data-tab') === 'reviewView') {
+        initReviewSession();
+      }
+    });
   });
 
   // Action Buttons
   copySummaryBtn.addEventListener('click', copySummaryToClipboard);
   downloadNotesBtn.addEventListener('click', exportCurrentNoteAsMarkdown);
   flipAllCardsBtn.addEventListener('click', toggleFlipAllCards);
+  retakeQuizBtn.addEventListener('click', handleRetakeQuiz);
+
+  // Feature 1: Spaced Repetition Review
+  reviewShowBtn.addEventListener('click', showReviewAnswer);
+  btnAgain.addEventListener('click', () => handleCardRating(0));
+  btnGood.addEventListener('click',  () => handleCardRating(4));
+  btnEasy.addEventListener('click',  () => handleCardRating(5));
+  reviewRestartBtn.addEventListener('click', initReviewSession);
+
+  // Feature 2: Note Tags — add tag on Enter or comma
+  noteTagInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addTagFromInput();
+    }
+  });
+  noteTagInput.addEventListener('blur', addTagFromInput);
+
+  // Feature 4: Focused Review Mode
+  reviewModeBtn.addEventListener('click', openFcReviewModal);
+  closeFcReviewBtn.addEventListener('click', closeFcReviewModal);
+  fcReviewCard.addEventListener('click', () => toggleFcReviewFlip());
+  fcReviewCard.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleFcReviewFlip(); }
+    if (e.key === 'ArrowRight') fcReviewNext.click();
+    if (e.key === 'ArrowLeft')  fcReviewPrev.click();
+  });
+  fcReviewFlip.addEventListener('click', toggleFcReviewFlip);
+  fcReviewPrev.addEventListener('click', () => navigateFcReview(-1));
+  fcReviewNext.addEventListener('click', () => navigateFcReview(1));
+  flashcardReviewModal.addEventListener('click', (e) => {
+    if (e.target === flashcardReviewModal) closeFcReviewModal();
+  });
+
+  // Feature 5: Note Templates
+  openTemplatesBtn.addEventListener('click', () => templatesModal.classList.remove('hidden'));
+  closeTemplatesModalBtn.addEventListener('click', () => templatesModal.classList.add('hidden'));
+  templatesModal.addEventListener('click', (e) => {
+    if (e.target === templatesModal) templatesModal.classList.add('hidden');
+  });
+  templatesModal.querySelectorAll('.template-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const tpl = card.getAttribute('data-template');
+      applyNoteTemplate(tpl);
+      templatesModal.classList.add('hidden');
+    });
+  });
 
   // Workspace Backup & Restore
   exportWorkspaceBtn.addEventListener('click', exportWorkspaceBackup);
@@ -1617,8 +1980,735 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initialize IndexedDB database & load workspace
   try {
     await initializeDataLayer();
+    await rebuildReviewQueue();
     console.log('[StudyBrain AI] IndexedDB Multi-Course Workspace initialized successfully.');
   } catch (err) {
     console.error('[StudyBrain AI] Failed to initialize IndexedDB:', err);
   }
+
+  // Feature 3: Pomodoro — init after DOM ready
+  initPomodoro();
 });
+
+
+// ============================================================
+// NEW FEATURES (1-5) � Appended
+// ============================================================
+// ============================================================================
+// FEATURE 1 — SPACED REPETITION SCHEDULER (SM-2 Algorithm)
+// ============================================================================
+
+/**
+ * Ensures a flashcard has all SM-2 fields, filling in defaults if missing.
+ * Called lazily when a card is first loaded or reviewed.
+ */
+function migrateCard(card) {
+  if (card.easeFactor     === undefined) card.easeFactor     = 2.5;
+  if (card.interval       === undefined) card.interval       = 1;
+  if (card.repetitions    === undefined) card.repetitions    = 0;
+  if (card.nextReviewDate === undefined) card.nextReviewDate = Date.now();
+  if (card.lastReviewed   === undefined) card.lastReviewed   = null;
+  return card;
+}
+
+/**
+ * SM-2 algorithm: given a card and a grade (0=Again, 4=Good, 5=Easy),
+ * returns a new card object with updated spaced repetition fields.
+ * Does NOT mutate the original card.
+ */
+function calculateSM2(card, grade) {
+  grade = Math.max(0, Math.min(5, grade));
+
+  let newEF = card.easeFactor + (0.1 - (5 - grade) * (0.08 + (5 - grade) * 0.02));
+  newEF = Math.max(1.3, newEF);
+
+  let newRepetitions, newInterval;
+
+  if (grade < 3) {
+    // Failed — reset
+    newRepetitions = 0;
+    newInterval    = 1;
+  } else {
+    if (card.repetitions === 0)      newInterval = 1;
+    else if (card.repetitions === 1) newInterval = 6;
+    else                             newInterval = Math.round(card.interval * newEF);
+    newRepetitions = card.repetitions + 1;
+  }
+
+  const MS_PER_DAY = 86400000;
+  return {
+    ...card,
+    easeFactor:     newEF,
+    interval:       newInterval,
+    repetitions:    newRepetitions,
+    nextReviewDate: Date.now() + newInterval * MS_PER_DAY,
+    lastReviewed:   Date.now()
+  };
+}
+
+/** Fisher-Yates shuffle — returns mutated array */
+function fisherYatesShuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+/**
+ * Scans all notes in the active notebook for cards where nextReviewDate <= now.
+ * Builds state.reviewQueue and updates the due badge.
+ */
+async function rebuildReviewQueue() {
+  if (!state.activeNotebookId) {
+    state.reviewQueue = [];
+    updateDueBadge();
+    return;
+  }
+
+  const now   = Date.now();
+  const queue = [];
+
+  try {
+    const allNotes = await dbGetNotesByNotebook(state.activeNotebookId);
+    for (const note of allNotes) {
+      const cards = note.flashcards || [];
+      for (const rawCard of cards) {
+        const card = migrateCard({ ...rawCard });
+        if (card.nextReviewDate <= now) {
+          queue.push({ ...card, _noteId: note.id });
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[Review] Failed to build review queue:', err);
+  }
+
+  state.reviewQueue = fisherYatesShuffle(queue);
+  updateDueBadge();
+}
+
+/** Update the red badge on the Review tab */
+function updateDueBadge() {
+  const count = state.reviewQueue.length;
+  if (count === 0) {
+    reviewDueBadge.classList.add('hidden');
+  } else {
+    reviewDueBadge.classList.remove('hidden');
+    reviewDueBadge.textContent = count > 99 ? '99+' : String(count);
+  }
+}
+
+/** Called when user opens the Review tab */
+async function initReviewSession() {
+  await rebuildReviewQueue();
+  state.reviewQueueIndex   = 0;
+  state.reviewSessionStats = {
+    total:     state.reviewQueue.length,
+    correct:   0,
+    forgotten: 0
+  };
+  renderNextReviewCard();
+}
+
+/** Renders the current card in the review session */
+function renderNextReviewCard() {
+  if (state.reviewQueue.length === 0) {
+    reviewEmptyState.classList.remove('hidden');
+    reviewSession.classList.add('hidden');
+    reviewComplete.classList.add('hidden');
+    return;
+  }
+
+  if (state.reviewQueueIndex >= state.reviewQueue.length) {
+    // Session done
+    reviewSession.classList.add('hidden');
+    reviewEmptyState.classList.add('hidden');
+    reviewComplete.classList.remove('hidden');
+
+    const { correct, forgotten, total } = state.reviewSessionStats;
+    reviewCompleteStats.textContent =
+      `Reviewed ${total} card${total !== 1 ? 's' : ''} · ${correct} remembered · ${forgotten} forgotten`;
+    return;
+  }
+
+  const card    = state.reviewQueue[state.reviewQueueIndex];
+  const current = state.reviewQueueIndex + 1;
+  const total   = state.reviewQueue.length;
+
+  reviewProgressText.textContent = `Card ${current} of ${total} due today`;
+  reviewProgressBar.max          = total;
+  reviewProgressBar.value        = current;
+
+  reviewQuestion.textContent = card.question;
+  reviewAnswer.textContent   = card.answer;
+
+  // Reset answer reveal
+  reviewAnswer.classList.add('hidden');
+  reviewRatingRow.classList.add('hidden');
+  reviewShowBtn.classList.remove('hidden');
+
+  reviewSession.classList.remove('hidden');
+  reviewEmptyState.classList.add('hidden');
+  reviewComplete.classList.add('hidden');
+}
+
+/** Reveal the answer for the current review card */
+function showReviewAnswer() {
+  reviewAnswer.classList.remove('hidden');
+  reviewRatingRow.classList.remove('hidden');
+  reviewShowBtn.classList.add('hidden');
+}
+
+/**
+ * Handle a rating click: update SM-2 fields, persist, advance queue.
+ * @param {number} grade  0=Again, 4=Good, 5=Easy
+ */
+async function handleCardRating(grade) {
+  const card = state.reviewQueue[state.reviewQueueIndex];
+  if (!card) return;
+
+  if (grade >= 3) {
+    state.reviewSessionStats.correct++;
+  } else {
+    state.reviewSessionStats.forgotten++;
+  }
+
+  const updatedCard = calculateSM2(card, grade);
+
+  // Persist the updated card back into its note in IndexedDB
+  try {
+    const note = await dbGet(STORES.NOTES, card._noteId);
+    if (note) {
+      note.flashcards = note.flashcards.map(c =>
+        c.id === updatedCard.id
+          ? { ...updatedCard, _noteId: undefined }   // strip runtime-only field
+          : c
+      );
+      await dbPut(STORES.NOTES, note);
+
+      // Update active note if it's the same one
+      if (state.activeNote && state.activeNote.id === note.id) {
+        state.activeNote.flashcards = note.flashcards;
+      }
+    }
+  } catch (err) {
+    console.warn('[Review] Failed to persist SM-2 update:', err);
+  }
+
+  state.reviewQueueIndex++;
+  updateDueBadge();
+  renderNextReviewCard();
+}
+
+
+// ============================================================================
+// FEATURE 2 — NOTE TAGGING & LABELS
+// ============================================================================
+
+/** Render the tag chips for the active note */
+function renderNoteTags(tags) {
+  noteTagsList.innerHTML = '';
+  (tags || []).forEach(tag => {
+    const chip = document.createElement('span');
+    chip.className = 'note-tag-chip';
+    chip.innerHTML = `${escapeHtml(tag)}<button title="Remove tag" aria-label="Remove tag ${escapeHtml(tag)}">×</button>`;
+    chip.querySelector('button').addEventListener('click', () => removeTag(tag));
+    noteTagsList.appendChild(chip);
+  });
+}
+
+/** Add a tag from the input field */
+async function addTagFromInput() {
+  if (!state.activeNote) return;
+  const raw = noteTagInput.value.trim().replace(/^#/, '').replace(/,/g, '').trim();
+  if (!raw) return;
+  const tag = '#' + raw.toLowerCase().replace(/\s+/g, '-');
+
+  const tags = state.activeNote.tags || [];
+  if (tags.includes(tag)) {
+    noteTagInput.value = '';
+    return;
+  }
+
+  tags.push(tag);
+  state.activeNote.tags = tags;
+  noteTagInput.value = '';
+  renderNoteTags(tags);
+  await flushActiveNoteSave();
+  renderSidebarTagCloud(state.notes);
+}
+
+/** Remove a tag from the active note */
+async function removeTag(tag) {
+  if (!state.activeNote) return;
+  state.activeNote.tags = (state.activeNote.tags || []).filter(t => t !== tag);
+  renderNoteTags(state.activeNote.tags);
+  await flushActiveNoteSave();
+  renderSidebarTagCloud(state.notes);
+}
+
+/** Render the tag cloud above the note list in the sidebar */
+function renderSidebarTagCloud(notes) {
+  // Collect unique tags from all notes
+  const tagCounts = {};
+  notes.forEach(n => {
+    (n.tags || []).forEach(t => {
+      tagCounts[t] = (tagCounts[t] || 0) + 1;
+    });
+  });
+
+  const allTags = Object.keys(tagCounts);
+  const tagCloud = document.getElementById('sidebarTagCloud');
+  tagCloud.innerHTML = '';
+
+  if (allTags.length === 0) return;
+
+  // "All" chip to clear filter
+  const allChip = document.createElement('button');
+  allChip.className = 'tag-filter-chip' + (state.tagFilter === null ? ' active' : '');
+  allChip.textContent = 'All';
+  allChip.addEventListener('click', () => {
+    state.tagFilter = null;
+    reloadNotesForActiveNotebook();
+  });
+  tagCloud.appendChild(allChip);
+
+  allTags.forEach(tag => {
+    const chip = document.createElement('button');
+    chip.className = 'tag-filter-chip' + (state.tagFilter === tag ? ' active' : '');
+    chip.textContent = `${tag} (${tagCounts[tag]})`;
+    chip.addEventListener('click', () => {
+      state.tagFilter = (state.tagFilter === tag) ? null : tag;
+      reloadNotesForActiveNotebook();
+    });
+    tagCloud.appendChild(chip);
+  });
+}
+
+
+// ============================================================================
+// FEATURE 3 — POMODORO STUDY TIMER
+// ============================================================================
+
+(function initPomodoro() {
+  // ---- Constants ----
+  const POMO_DURATIONS = { focus: 1500, short: 300, long: 900 };
+  const CIRCUMFERENCE   = 2 * Math.PI * 18; // r=18
+
+  // ---- DOM ----
+  const widget       = document.getElementById('pomodoro-widget');
+  const display      = document.getElementById('pomodoro-display');
+  const label        = document.getElementById('pomodoro-session-label');
+  const dots         = document.querySelectorAll('.pomo-dot');
+  const progressArc  = document.getElementById('pomodoro-progress');
+  const btnStartPause= document.getElementById('pomodoro-btn-start-pause');
+  const btnReset     = document.getElementById('pomodoro-btn-reset');
+  const btnSkip      = document.getElementById('pomodoro-btn-skip');
+
+  // ---- State ----
+  let sessionType    = 'focus';   // 'focus' | 'short' | 'long'
+  let totalDuration  = POMO_DURATIONS.focus;
+  let remaining      = totalDuration;
+  let isRunning      = false;
+  let tickerId       = null;
+  let pomodoroCount  = 0;
+
+  // Load persisted count
+  const saved = parseInt(localStorage.getItem('studybrain_pomodoro_count'), 10);
+  if (!isNaN(saved) && saved >= 0) pomodoroCount = saved;
+
+  // Set SVG circumference
+  progressArc.style.strokeDasharray = CIRCUMFERENCE;
+  updateRing();
+  updateDots();
+  updateDisplay();
+  applyStateClass();
+
+  // ---- Helpers ----
+  function formatTime(secs) {
+    const m = Math.floor(secs / 60).toString().padStart(2, '0');
+    const s = (secs % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  }
+
+  function updateDisplay() {
+    display.textContent = formatTime(remaining);
+    document.title = isRunning
+      ? `${formatTime(remaining)} · StudyBrain AI`
+      : 'StudyBrain AI';
+  }
+
+  function updateRing() {
+    const fraction  = remaining / totalDuration;
+    const offset    = CIRCUMFERENCE * (1 - fraction);
+    progressArc.style.strokeDashoffset = offset;
+  }
+
+  function updateDots() {
+    const filled = pomodoroCount % 4;
+    dots.forEach((dot, i) => {
+      dot.classList.toggle('pomo-dot--filled', i < filled);
+    });
+  }
+
+  function applyStateClass() {
+    widget.className = '';
+    if (!isRunning && sessionType === 'focus') widget.classList.add('pomo-idle');
+    else if (isRunning && sessionType === 'focus') widget.classList.add('pomo-running');
+    else if (!isRunning && sessionType === 'focus') widget.classList.add('pomo-paused');
+    else if (sessionType === 'short') widget.classList.add('pomo-break');
+    else if (sessionType === 'long')  widget.classList.add('pomo-long-break');
+
+    // Update label
+    const labels = { focus: 'Focus', short: 'Short Break', long: 'Long Break' };
+    label.textContent = labels[sessionType];
+
+    // Update start/pause icon
+    const startIcon  = `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+    const pauseIcon  = `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
+    btnStartPause.innerHTML = isRunning ? pauseIcon : startIcon;
+    btnStartPause.setAttribute('aria-label', isRunning ? 'Pause timer' : 'Start timer');
+  }
+
+  function loadSession(type) {
+    sessionType   = type;
+    totalDuration = POMO_DURATIONS[type];
+    remaining     = totalDuration;
+    isRunning     = false;
+    clearInterval(tickerId);
+    tickerId      = null;
+    updateDisplay();
+    updateRing();
+    applyStateClass();
+  }
+
+  function flashWidget() {
+    widget.classList.add('pomo-flash');
+    widget.addEventListener('animationend', () => widget.classList.remove('pomo-flash'), { once: true });
+  }
+
+  function sendNotification(title, body) {
+    if (typeof Notification === 'undefined') return;
+    if (Notification.permission === 'granted') {
+      new Notification(title, { body, tag: 'studybrain-pomodoro', icon: '/favicon.ico' });
+    }
+  }
+
+  function onSessionComplete() {
+    clearInterval(tickerId);
+    tickerId  = null;
+    isRunning = false;
+    flashWidget();
+
+    if (sessionType === 'focus') {
+      pomodoroCount++;
+      localStorage.setItem('studybrain_pomodoro_count', String(pomodoroCount));
+      updateDots();
+
+      const isLongBreak = pomodoroCount % 4 === 0;
+      const nextType    = isLongBreak ? 'long' : 'short';
+      const nextLabel   = isLongBreak ? 'long break (15 min)' : 'short break (5 min)';
+      sendNotification('StudyBrain — Focus session complete! 🎉', `Time for a ${nextLabel}.`);
+      loadSession(nextType);
+      startTicker(); // auto-start break
+    } else {
+      sendNotification('StudyBrain — Break over! ⏰', 'Ready to focus?');
+      loadSession('focus');
+      // Don't auto-start focus — let user decide
+    }
+  }
+
+  function startTicker() {
+    isRunning = true;
+    applyStateClass();
+    tickerId = setInterval(() => {
+      remaining--;
+      updateDisplay();
+      updateRing();
+      if (remaining <= 0) onSessionComplete();
+    }, 1000);
+  }
+
+  // ---- Event handlers ----
+  btnStartPause.addEventListener('click', () => {
+    // Request notification permission on first user gesture
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
+    if (isRunning) {
+      clearInterval(tickerId);
+      tickerId  = null;
+      isRunning = false;
+      applyStateClass();
+    } else {
+      startTicker();
+    }
+  });
+
+  btnReset.addEventListener('click', () => {
+    clearInterval(tickerId);
+    tickerId  = null;
+    isRunning = false;
+    remaining = totalDuration;
+    updateDisplay();
+    updateRing();
+    applyStateClass();
+  });
+
+  btnSkip.addEventListener('click', () => {
+    clearInterval(tickerId);
+    tickerId  = null;
+    isRunning = true; // so onSessionComplete treats it as running
+    onSessionComplete();
+  });
+})();
+
+
+// ============================================================================
+// FEATURE 4 — FOCUSED FLASHCARD REVIEW MODE (Full-Screen Modal)
+// ============================================================================
+
+/** Open the flashcard review modal with current note's cards */
+function openFcReviewModal() {
+  if (!state.activeNote || !state.activeNote.flashcards || state.activeNote.flashcards.length === 0) {
+    alert('No flashcards available for this note yet. Generate a summary first.');
+    return;
+  }
+
+  state.fcReviewCards = state.activeNote.flashcards.slice();
+  state.fcReviewIndex = 0;
+  fcReviewCard.classList.remove('is-flipped');
+  renderFcReviewCard();
+  flashcardReviewModal.classList.remove('hidden');
+  fcReviewCard.focus();
+}
+
+function closeFcReviewModal() {
+  flashcardReviewModal.classList.add('hidden');
+  fcReviewCard.classList.remove('is-flipped');
+}
+
+function renderFcReviewCard() {
+  const cards = state.fcReviewCards;
+  const idx   = state.fcReviewIndex;
+  const card  = cards[idx];
+
+  fcReviewQuestion.textContent = card.question;
+  fcReviewAnswer.textContent   = card.answer;
+  fcReviewCounter.textContent  = `${idx + 1} / ${cards.length}`;
+  fcReviewProgressBar.max      = cards.length;
+  fcReviewProgressBar.value    = idx + 1;
+
+  // Reset flip on card change
+  fcReviewCard.classList.remove('is-flipped');
+
+  // Disable/enable nav buttons
+  fcReviewPrev.disabled = idx === 0;
+  fcReviewNext.disabled = idx === cards.length - 1;
+  fcReviewNext.textContent = idx === cards.length - 1 ? 'Done ✓' : 'Next →';
+}
+
+function toggleFcReviewFlip() {
+  fcReviewCard.classList.toggle('is-flipped');
+}
+
+function navigateFcReview(direction) {
+  const next = state.fcReviewIndex + direction;
+  if (next < 0 || next > state.fcReviewCards.length - 1) {
+    if (direction === 1 && next >= state.fcReviewCards.length) {
+      closeFcReviewModal();
+    }
+    return;
+  }
+  state.fcReviewIndex = next;
+  renderFcReviewCard();
+}
+
+
+// ============================================================================
+// FEATURE 5 — NOTE TEMPLATES
+// ============================================================================
+
+const NOTE_TEMPLATES = {
+  cornell: {
+    title: 'Cornell Notes — [Topic]',
+    content:
+`## Cornell Notes
+**Course:** 
+**Date:** ${new Date().toLocaleDateString()}
+**Topic:** 
+
+---
+
+### 📌 Cue Column (Key Questions & Concepts)
+- Q: 
+- Q: 
+- Q: 
+
+---
+
+### 📝 Notes Column (Main Ideas & Details)
+
+
+
+---
+
+### 💡 Summary
+Write a 2–3 sentence summary of the key ideas from this lecture:
+
+`
+  },
+  lecture: {
+    title: 'Lecture Notes — [Subject]',
+    content:
+`## Lecture Notes
+**Course:** 
+**Instructor:** 
+**Date:** ${new Date().toLocaleDateString()}
+
+---
+
+### 🎯 Learning Objectives
+1. 
+2. 
+3. 
+
+---
+
+### 📖 Key Concepts
+
+
+
+---
+
+### 🔍 Examples & Applications
+
+
+
+---
+
+### ❓ Questions & Clarifications
+
+
+
+---
+
+### 🔗 Connections to Previous Material
+
+
+`
+  },
+  research: {
+    title: 'Research Paper — [Title]',
+    content:
+`## Research Paper Analysis
+**Title:** 
+**Authors:** 
+**Year:** 
+**Source:** 
+
+---
+
+### 📝 Abstract Summary
+
+
+
+---
+
+### 🧪 Methodology
+**Study Design:** 
+**Sample / Dataset:** 
+**Key Methods:** 
+
+---
+
+### 📊 Key Findings
+
+
+
+---
+
+### 💬 Discussion & Implications
+
+
+
+---
+
+### ⚠️ Limitations & Research Gaps
+
+
+
+---
+
+### 📌 Personal Notes & Takeaways
+
+
+`
+  },
+  meeting: {
+    title: 'Meeting Notes — [Date]',
+    content:
+`## Meeting Notes
+**Date:** ${new Date().toLocaleDateString()}
+**Time:** 
+**Location / Platform:** 
+
+---
+
+### 👥 Attendees
+- 
+
+---
+
+### 📋 Agenda
+1. 
+2. 
+3. 
+
+---
+
+### 🗒️ Discussion & Notes
+
+
+
+---
+
+### ✅ Decisions Made
+- 
+
+---
+
+### 🏃 Action Items
+| Task | Owner | Due Date |
+|------|-------|----------|
+|      |       |          |
+
+---
+
+### 📅 Next Meeting
+
+
+`
+  }
+};
+
+/** Apply a named template to the active note */
+async function applyNoteTemplate(templateKey) {
+  if (!state.activeNote) return;
+  const tpl = NOTE_TEMPLATES[templateKey];
+  if (!tpl) return;
+
+  if (notesInput.value.trim() && notesInput.value.trim() !== '') {
+    if (!confirm('This will replace the current note content with the template. Continue?')) return;
+  }
+
+  noteTitleInput.value = tpl.title;
+  notesInput.value     = tpl.content;
+  handleNoteInput();
+  notesInput.focus();
+  notesInput.setSelectionRange(0, 0);
+  notesInput.scrollTop = 0;
+}
+
