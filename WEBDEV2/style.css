@@ -176,6 +176,21 @@ body {
   user-select: none;
 }
 
+.privacy-badge.is-offline {
+  background-color: rgba(245, 158, 11, 0.14);
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.privacy-badge.is-offline .pulse-indicator {
+  background-color: #f59e0b;
+}
+
+.pwa-install-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .pulse-indicator {
   width: 8px;
   height: 8px;

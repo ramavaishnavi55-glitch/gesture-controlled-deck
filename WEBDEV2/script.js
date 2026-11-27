@@ -194,8 +194,11 @@ const exportWorkspaceBtn = document.getElementById('exportWorkspaceBtn');
 const importWorkspaceBtn = document.getElementById('importWorkspaceBtn');
 const restoreFileInput = document.getElementById('restoreFileInput');
 
-// Theme & Progress Bar
+// Theme, PWA & Progress Bar
 const themeToggleBtn = document.getElementById('themeToggleBtn');
+const offlineStatusBadge = document.getElementById('offlineStatusBadge');
+const offlineStatusLabel = document.getElementById('offlineStatusLabel');
+const pwaInstallBtn = document.getElementById('pwaInstallBtn');
 const modelProgressContainer = document.getElementById('modelProgressContainer');
 const progressBarFill = document.getElementById('progressBarFill');
 const progressPercentage = document.getElementById('progressPercentage');
@@ -1659,8 +1662,10 @@ function escapeHtml(str) {
 }
 
 // ============================================================================
-// 12. CLIENT-SIDE PDF & DOCUMENT PARSER (PDF.js Integration)
+// 12. CLIENT-SIDE DOCUMENT, OFFICE & OCR PARSER (PDF.js + JSZip + Tesseract)
 // ============================================================================
+let cachedOcrWorker = null;
+let activeOcrProgressHandler = null;
 
 /**
  * Initializes the PDF.js web worker source
@@ -1673,56 +1678,286 @@ function initPdfLib() {
 }
 
 /**
- * Extracts text from PDF, TXT, or Markdown documents 100% locally in browser
+ * Maps an uploaded/dropped File to a supported parser category.
+ * @param {File} file
+ * @returns {'pdf'|'docx'|'pptx'|'image'|'text'|'unsupported'}
+ */
+function detectDocumentType(file) {
+  if (!file || !file.name) return 'unsupported';
+  const name = file.name.toLowerCase();
+  const type = (file.type || '').toLowerCase();
+
+  if (type === 'application/pdf' || name.endsWith('.pdf')) return 'pdf';
+  if (name.endsWith('.docx') || type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return 'docx';
+  if (name.endsWith('.pptx') || type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') return 'pptx';
+  if (type.startsWith('image/') || /\.(png|jpe?g|webp|bmp|gif)$/i.test(name)) return 'image';
+  if (type.startsWith('text/') || /\.(txt|md|markdown)$/i.test(name)) return 'text';
+  return 'unsupported';
+}
+
+/**
+ * Decodes common XML entities into plain text.
+ */
+function decodeXmlEntities(str) {
+  if (!str) return '';
+  return str
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(Number(dec)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+}
+
+/**
+ * Extracts structured paragraphs from OOXML documents (DOCX w:p/w:t or PPTX a:p/a:t).
+ */
+function extractParagraphsFromXml(xmlString, paragraphTag, textTag) {
+  if (!xmlString) return '';
+
+  if (typeof DOMParser !== 'undefined') {
+    const doc = new DOMParser().parseFromString(xmlString, 'text/xml');
+    const paragraphs = Array.from(doc.getElementsByTagName(paragraphTag));
+    if (paragraphs.length > 0) {
+      return paragraphs
+        .map((p) => {
+          const runs = Array.from(p.getElementsByTagName(textTag));
+          return runs.map((node) => node.textContent || '').join('').trim();
+        })
+        .filter(Boolean)
+        .join('\n');
+    }
+  }
+
+  // Fallback XML extraction for environments without DOMParser
+  const paraRegex = new RegExp(`<${paragraphTag}\\b[^>]*>([\\s\\S]*?)<\\/${paragraphTag}>`, 'g');
+  const textRegex = new RegExp(`<${textTag}\\b[^>]*>([\\s\\S]*?)<\\/${textTag}>`, 'g');
+  const lines = [];
+  let paraMatch;
+  while ((paraMatch = paraRegex.exec(xmlString)) !== null) {
+    const chunk = paraMatch[1];
+    let text = '';
+    let textMatch;
+    while ((textMatch = textRegex.exec(chunk)) !== null) {
+      text += decodeXmlEntities(textMatch[1]);
+    }
+    const cleaned = text.trim();
+    if (cleaned) lines.push(cleaned);
+  }
+  return lines.join('\n');
+}
+
+/**
+ * Sorts PPTX slide XML paths numerically (slide1.xml, slide2.xml, ..., slide10.xml).
+ */
+function sortPptxSlidePaths(paths) {
+  const getSlideNum = (p) => {
+    const m = p.match(/(\d+)\.xml$/i);
+    return m ? parseInt(m[1], 10) : 0;
+  };
+  return [...paths].sort((a, b) => getSlideNum(a) - getSlideNum(b));
+}
+
+/**
+ * Extracts text from a .docx Word document entirely in-browser via JSZip.
+ */
+async function extractTextFromDocxFile(file) {
+  if (!window.JSZip) {
+    throw new Error('JSZip library is not available. Please check your connection or cached assets.');
+  }
+  pdfParseStatusText.textContent = 'Reading DOCX archive...';
+  const arrayBuffer = await file.arrayBuffer();
+  const zip = await window.JSZip.loadAsync(arrayBuffer);
+  const docEntry = zip.file('word/document.xml');
+  if (!docEntry) {
+    throw new Error('Invalid DOCX file: word/document.xml was not found.');
+  }
+  pdfParseStatusText.textContent = 'Extracting paragraphs from DOCX...';
+  const xml = await docEntry.async('string');
+  return extractParagraphsFromXml(xml, 'w:p', 'w:t');
+}
+
+/**
+ * Extracts slide text (and speaker notes if present) from a .pptx deck via JSZip.
+ */
+async function extractTextFromPptxFile(file) {
+  if (!window.JSZip) {
+    throw new Error('JSZip library is not available. Please check your connection or cached assets.');
+  }
+  pdfParseStatusText.textContent = 'Reading PPTX presentation archive...';
+  const arrayBuffer = await file.arrayBuffer();
+  const zip = await window.JSZip.loadAsync(arrayBuffer);
+
+  const slidePaths = sortPptxSlidePaths(
+    Object.keys(zip.files).filter((name) => /^ppt\/slides\/slide\d+\.xml$/i.test(name))
+  );
+
+  if (slidePaths.length === 0) {
+    throw new Error('No slides found inside this PPTX file.');
+  }
+
+  const sections = [];
+  for (let i = 0; i < slidePaths.length; i++) {
+    const slideNum = i + 1;
+    pdfParseStatusText.textContent = `Extracting text from PPTX (Slide ${slideNum} of ${slidePaths.length})...`;
+    const slideXml = await zip.file(slidePaths[i]).async('string');
+    const slideText = extractParagraphsFromXml(slideXml, 'a:p', 'a:t');
+
+    const notesPath = `ppt/notesSlides/notesSlide${slideNum}.xml`;
+    let notesText = '';
+    if (zip.file(notesPath)) {
+      const notesXml = await zip.file(notesPath).async('string');
+      notesText = extractParagraphsFromXml(notesXml, 'a:p', 'a:t');
+    }
+
+    const combined = [slideText, notesText ? `Speaker Notes:\n${notesText}` : '']
+      .filter(Boolean)
+      .join('\n\n');
+
+    if (combined.trim()) {
+      sections.push(`[Slide ${slideNum}]\n${combined.trim()}`);
+    }
+  }
+  return sections.join('\n\n');
+}
+
+/**
+ * Lazily initializes and reuses a singleton Tesseract.js OCR worker.
+ */
+async function getOcrWorker() {
+  if (!window.Tesseract) {
+    throw new Error('Tesseract.js OCR library is not available.');
+  }
+  if (!cachedOcrWorker) {
+    cachedOcrWorker = await window.Tesseract.createWorker('eng', 1, {
+      logger: (info) => {
+        if (typeof activeOcrProgressHandler === 'function') {
+          activeOcrProgressHandler(info);
+        }
+      }
+    });
+  }
+  return cachedOcrWorker;
+}
+
+/**
+ * Runs client-side OCR on an image URL, Canvas, or Blob via Tesseract.js.
+ */
+async function runOcrOnSource(source, statusPrefix) {
+  activeOcrProgressHandler = (info) => {
+    if (info && info.status) {
+      const pct = typeof info.progress === 'number' ? ` (${Math.round(info.progress * 100)}%)` : '';
+      pdfParseStatusText.textContent = `${statusPrefix}: ${info.status}${pct}...`;
+    }
+  };
+  try {
+    pdfParseStatusText.textContent = `${statusPrefix}: Initializing OCR engine...`;
+    const worker = await getOcrWorker();
+    const { data } = await worker.recognize(source);
+    return (data && data.text ? data.text : '').trim();
+  } finally {
+    activeOcrProgressHandler = null;
+  }
+}
+
+/**
+ * Renders a PDF.js page onto an offscreen canvas for OCR fallback.
+ */
+async function renderPdfPageToCanvas(page, scale = 2.0) {
+  const viewport = page.getViewport({ scale });
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.ceil(viewport.width);
+  canvas.height = Math.ceil(viewport.height);
+  const ctx = canvas.getContext('2d');
+  await page.render({ canvasContext: ctx, viewport }).promise;
+  return canvas;
+}
+
+/**
+ * Extracts text from PDF via PDF.js, automatically falling back to OCR on
+ * scanned / image-only pages where embedded text is missing.
+ */
+async function extractTextFromPdfWithOcr(file) {
+  if (!window.pdfjsLib) {
+    throw new Error('PDF.js library is not available. Please verify your connection or cached assets.');
+  }
+
+  pdfParseStatusText.textContent = 'Reading PDF binary data...';
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const numPages = pdf.numPages;
+
+  const pageTexts = [];
+  for (let i = 1; i <= numPages; i++) {
+    pdfParseStatusText.textContent = `Extracting text from PDF (Page ${i} of ${numPages})...`;
+    const page = await pdf.getPage(i);
+    const textContent = await page.getTextContent();
+    const strings = textContent.items.map(item => item.str);
+    let cleanPageText = strings.join(' ').replace(/\s+/g, ' ').trim();
+
+    if (cleanPageText.length < 15 && window.Tesseract) {
+      const canvas = await renderPdfPageToCanvas(page, 2.0);
+      const ocrText = await runOcrOnSource(canvas, `Running OCR on scanned PDF (Page ${i} of ${numPages})`);
+      if (ocrText) {
+        cleanPageText = ocrText;
+      }
+    }
+
+    if (cleanPageText) {
+      pageTexts.push(`[Slide / Page ${i}]\n${cleanPageText}`);
+    }
+  }
+
+  return pageTexts.join('\n\n');
+}
+
+/**
+ * Extracts text from an uploaded image file using client-side OCR.
+ */
+async function extractTextFromImageFile(file) {
+  const imageUrl = URL.createObjectURL(file);
+  try {
+    return await runOcrOnSource(imageUrl, `Running OCR on ${file.name}`);
+  } finally {
+    URL.revokeObjectURL(imageUrl);
+  }
+}
+
+/**
+ * Extracts text from PDF (including scanned OCR), DOCX, PPTX, images (OCR),
+ * or plain/Markdown files 100% locally in the browser.
  */
 async function handleDocumentFile(file) {
   if (!file) return;
 
-  const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-  const isText = file.type.startsWith('text/') || file.name.match(/\.(txt|md|markdown)$/i);
-
-  if (!isPdf && !isText) {
-    alert('Please upload a PDF document (.pdf) or text note file (.txt, .md).');
+  const docType = detectDocumentType(file);
+  if (docType === 'unsupported') {
+    alert('Unsupported file type. Please upload a PDF, DOCX, PPTX, TXT, MD, or image file (.png, .jpg, .webp) for OCR.');
     return;
   }
 
   try {
     let extractedText = '';
+    pdfParseProgressBanner.classList.remove('hidden');
 
-    if (isPdf) {
-      if (!window.pdfjsLib) {
-        alert('PDF.js library is not available. Please verify your internet connection.');
-        return;
-      }
-
-      pdfParseProgressBanner.classList.remove('hidden');
-      pdfParseStatusText.textContent = 'Reading PDF binary data...';
-
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      const numPages = pdf.numPages;
-
-      let pageTexts = [];
-      for (let i = 1; i <= numPages; i++) {
-        pdfParseStatusText.textContent = `Extracting text from PDF (Page ${i} of ${numPages})...`;
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
-        const strings = textContent.items.map(item => item.str);
-        const cleanPageText = strings.join(' ').replace(/\s+/g, ' ').trim();
-        if (cleanPageText) {
-          pageTexts.push(`[Slide / Page ${i}]\n${cleanPageText}`);
-        }
-      }
-
-      extractedText = pageTexts.join('\n\n');
+    if (docType === 'pdf') {
+      extractedText = await extractTextFromPdfWithOcr(file);
+    } else if (docType === 'docx') {
+      extractedText = await extractTextFromDocxFile(file);
+    } else if (docType === 'pptx') {
+      extractedText = await extractTextFromPptxFile(file);
+    } else if (docType === 'image') {
+      extractedText = await extractTextFromImageFile(file);
     } else {
+      pdfParseStatusText.textContent = `Reading ${file.name}...`;
       extractedText = await file.text();
     }
 
     pdfParseProgressBanner.classList.add('hidden');
 
     if (!extractedText.trim()) {
-      alert('No readable text could be extracted from this document (it might be a scanned image-only PDF without OCR).');
+      alert('No readable text could be extracted from this document.');
       return;
     }
 
@@ -1739,11 +1974,84 @@ async function handleDocumentFile(file) {
     handleNoteInput();
     notesInput.scrollTop = 0;
 
-    console.log(`[StudyBrain AI] Successfully extracted ${calculateWordCount(extractedText)} words from ${file.name}.`);
+    console.log(`[StudyBrain AI] Successfully extracted ${calculateWordCount(extractedText)} words from ${file.name} (${docType}).`);
   } catch (err) {
-    console.error('PDF extraction failed:', err);
+    console.error('Document extraction failed:', err);
     pdfParseProgressBanner.classList.add('hidden');
     alert('Error extracting text from document: ' + err.message);
+  }
+}
+
+// ============================================================================
+// 12B. SERVICE WORKER & PWA OFFLINE SHELL REGISTRATION
+// ============================================================================
+let deferredInstallPrompt = null;
+
+/**
+ * Updates the header privacy/offline badge based on network & Service Worker state.
+ */
+function updateOfflineStatusBadge(swReady = false) {
+  if (!offlineStatusBadge || !offlineStatusLabel) return;
+  const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+
+  if (!isOnline) {
+    offlineStatusBadge.classList.add('is-offline');
+    offlineStatusLabel.textContent = swReady
+      ? 'Offline Mode Active (Cached App Shell)'
+      : 'Offline Mode (Local IndexedDB Active)';
+  } else {
+    offlineStatusBadge.classList.remove('is-offline');
+    offlineStatusLabel.textContent = swReady
+      ? '100% Offline Ready (App Shell Cached)'
+      : '100% Offline & Private (Runs Locally)';
+  }
+}
+
+/**
+ * Registers sw.js for offline app-shell caching and wires PWA install prompt.
+ */
+async function initPwaOfflineSupport() {
+  let swReady = false;
+  updateOfflineStatusBadge(false);
+
+  window.addEventListener('online', () => updateOfflineStatusBadge(swReady));
+  window.addEventListener('offline', () => updateOfflineStatusBadge(swReady));
+
+  if (pwaInstallBtn) {
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      pwaInstallBtn.classList.remove('hidden');
+    });
+
+    pwaInstallBtn.addEventListener('click', async () => {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      pwaInstallBtn.classList.add('hidden');
+    });
+
+    window.addEventListener('appinstalled', () => {
+      deferredInstallPrompt = null;
+      pwaInstallBtn.classList.add('hidden');
+    });
+  }
+
+  if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
+    try {
+      const registration = await navigator.serviceWorker.register('./sw.js');
+      swReady = Boolean(registration.active || navigator.serviceWorker.controller);
+      updateOfflineStatusBadge(swReady);
+
+      navigator.serviceWorker.ready.then(() => {
+        swReady = true;
+        updateOfflineStatusBadge(true);
+      });
+      console.log('[StudyBrain AI] Service Worker registered for offline shell caching.');
+    } catch (err) {
+      console.warn('[StudyBrain AI] Service Worker registration failed:', err);
+    }
   }
 }
 
@@ -1968,6 +2276,7 @@ Modern advancements have enabled edge AI, allowing neural models to execute dire
 document.addEventListener('DOMContentLoaded', async () => {
   initTheme();
   initPdfLib();
+  initPwaOfflineSupport();
   initEventListeners();
   initializeWorker();
 

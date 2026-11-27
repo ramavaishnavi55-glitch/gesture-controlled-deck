@@ -30,9 +30,9 @@ A 100% offline-capable, client-side AI study assistant built with **HTML5**, **C
    - **Backup & Restore**: Export the entire multi-course workspace into a portable JSON file to back up or migrate between devices.
    - One-click **Copy Summary** and **Export to Markdown (.md)**.
 
-6. **📄 Drag-and-Drop PDF & Slide Deck Extraction (PDF.js)**
-   - Drag and drop lecture slides or reading materials (`.pdf`, `.txt`, `.md`) directly into the workspace.
-   - PDF pages are decoded and extracted 100% locally in your browser using **PDF.js** without uploading files anywhere.
+6. **📄 Multi-Format Document & OCR Extraction (PDF.js + JSZip + Tesseract.js)**
+   - Drag and drop lecture materials (`.pdf`, `.docx`, `.pptx`, `.txt`, `.md`, or images `.png`, `.jpg`, `.webp`) directly into the workspace.
+   - Extracts text from PDFs, Word documents (`.docx`), PowerPoint decks + speaker notes (`.pptx`), and runs 100% client-side **Tesseract.js OCR** on uploaded images and scanned image-only PDF pages.
    - Automatically names notes using the file name and feeds extracted text into the AI summarizer.
 
 7. **🎯 Interactive AI Practice Exam (MCQ Generator)**
@@ -40,6 +40,10 @@ A 100% offline-capable, client-side AI study assistant built with **HTML5**, **C
    - Instant visual feedback: Green for correct answers, red for incorrect selections, with correct answers highlighted.
    - Includes detailed educational rationales/explanations for every question and live score tracking (`Score: X / Y (%)`).
    - One-click "Retake Quiz" to clear selections and re-test understanding, with results saved to IndexedDB.
+
+8. **📲 Installable PWA & Service Worker Offline App Shell**
+   - Includes `manifest.json`, `icon.svg`, and `sw.js` to pre-cache the entire app shell (`index.html`, `style.css`, `script.js`, `worker.js`) and cache CDN dependencies (`PDF.js`, `JSZip`, `Tesseract.js`, `Transformers.js`, fonts) for launching offline.
+   - Live online/offline status badge and one-click PWA install prompt when supported by the browser.
 
 ---
 
@@ -49,8 +53,13 @@ A 100% offline-capable, client-side AI study assistant built with **HTML5**, **C
 WEBDEV2/
 ├── index.html        # Multi-course workspace layout, collapsible sidebar & modal dialogs
 ├── style.css         # CSS variables, 3D flip-card transforms, sidebar styling & responsive grid
-├── script.js         # IndexedDB data engine, UI controller, search, and state manager
+├── script.js         # IndexedDB data engine, document/OCR parser, SW registration & UI controller
 ├── worker.js         # Dedicated Web Worker running Transformers.js in the background
+├── sw.js             # Service Worker for offline app-shell and CDN asset caching
+├── manifest.json     # PWA Web App Manifest
+├── icon.svg          # Vector app icon for PWA installation
+├── tests.html        # Browser QA test runner
+├── test-suite.js     # Automated Node.js unit & integration tests
 └── README.md         # Documentation & quick start guide
 ```
 

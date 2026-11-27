@@ -357,6 +357,23 @@
         if (q.options.length !== 4) throw new Error('Quiz must have 4 options');
         if (q.correctIndex < 0 || q.correctIndex > 3) throw new Error('Invalid correctIndex');
       });
+
+      // 7. Service Worker & PWA Offline Shell
+      await runTest('PWA & Offline Shell: Service Worker API & manifest.json availability', async () => {
+        if (!('serviceWorker' in navigator)) throw new Error('Service Worker API not supported');
+        const res = await fetch('manifest.json');
+        if (!res.ok) throw new Error('manifest.json could not be fetched');
+        const manifest = await res.json();
+        if (!manifest.start_url || !manifest.short_name) throw new Error('Invalid manifest.json fields');
+      });
+
+      // 8. OOXML Document Parsing (DOCX / PPTX)
+      await runTest('Document Ingestion: DOCX & PPTX XML paragraph parsing', () => {
+        const xml = '<w:body><w:p><w:r><w:t>Deep Learning Notes</w:t></w:r></w:p></w:body>';
+        const doc = new DOMParser().parseFromString(xml, 'text/xml');
+        const runs = Array.from(doc.getElementsByTagName('w:t')).map(n => n.textContent).join('');
+        if (runs !== 'Deep Learning Notes') throw new Error('OOXML DOMParser extraction failed');
+      });
     }
 
     runTestsBtn.addEventListener('click', executeTestSuite);

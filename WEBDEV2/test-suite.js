@@ -432,3 +432,124 @@ test('Algorithm: generateQuizQuestions() multiple-choice question synthesis', ()
   // Verify definition match question stem
   assert.match(quiz[0].question, /Backpropagation/);
 });
+
+// ============================================================================
+// SUITE 10: Service Worker & PWA Offline Shell Caching
+// ============================================================================
+test('PWA & Service Worker: manifest.json, icon.svg, and sw.js exist and are valid', () => {
+  const manifestPath = path.join(__dirname, 'manifest.json');
+  const swPath = path.join(__dirname, 'sw.js');
+  const iconPath = path.join(__dirname, 'icon.svg');
+
+  assert.ok(fs.existsSync(manifestPath), 'manifest.json must exist');
+  assert.ok(fs.existsSync(swPath), 'sw.js must exist');
+  assert.ok(fs.existsSync(iconPath), 'icon.svg must exist');
+
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+  assert.ok(manifest.name && manifest.short_name, 'manifest.json must define name and short_name');
+  assert.equal(manifest.start_url, './index.html');
+  assert.equal(manifest.display, 'standalone');
+  assert.ok(Array.isArray(manifest.icons) && manifest.icons.length > 0, 'manifest.json must declare icons');
+
+  const swContent = fs.readFileSync(swPath, 'utf-8');
+  assert.match(swContent, /addEventListener\(['"]install['"]/, 'sw.js must handle install event');
+  assert.match(swContent, /addEventListener\(['"]activate['"]/, 'sw.js must handle activate event');
+  assert.match(swContent, /addEventListener\(['"]fetch['"]/, 'sw.js must handle fetch event');
+  ['index.html', 'style.css', 'script.js', 'worker.js', 'manifest.json', 'icon.svg'].forEach((asset) => {
+    assert.ok(swContent.includes(asset), `sw.js must pre-cache ${asset}`);
+  });
+
+  assert.match(htmlContent, /rel=["']manifest["']\s+href=["']manifest\.json["']/, 'index.html must link manifest.json');
+  assert.match(scriptContent, /navigator\.serviceWorker\.register\(['"]\.\/sw\.js['"]\)/, 'script.js must register ./sw.js');
+});
+
+// ============================================================================
+// SUITE 11: OCR & Multi-Format Document Parsers (DOCX, PPTX, Images)
+// ============================================================================
+test('Document Ingestion: JSZip, Tesseract.js, and expanded file accept types in index.html', () => {
+  assert.match(htmlContent, /src=["'][^"']*jszip[^"']*\.js["']/, 'index.html must load JSZip');
+  assert.match(htmlContent, /src=["'][^"']*tesseract[^"']*\.js["']/, 'index.html must load Tesseract.js');
+  assert.match(htmlContent, /accept=["'][^"']*\.docx[^"']*["']/, 'pdfFileInput must accept .docx');
+  assert.match(htmlContent, /accept=["'][^"']*\.pptx[^"']*["']/, 'pdfFileInput must accept .pptx');
+  assert.match(htmlContent, /accept=["'][^"']*\.png[^"']*["']/, 'pdfFileInput must accept image files for OCR');
+});
+
+test('Algorithm: detectDocumentType() and sortPptxSlidePaths()', () => {
+  function detectDocumentType(file) {
+    if (!file || !file.name) return 'unsupported';
+    const name = file.name.toLowerCase();
+    const type = (file.type || '').toLowerCase();
+    if (type === 'application/pdf' || name.endsWith('.pdf')) return 'pdf';
+    if (name.endsWith('.docx')) return 'docx';
+    if (name.endsWith('.pptx')) return 'pptx';
+    if (type.startsWith('image/') || /\.(png|jpe?g|webp|bmp|gif)$/i.test(name)) return 'image';
+    if (type.startsWith('text/') || /\.(txt|md|markdown)$/i.test(name)) return 'text';
+    return 'unsupported';
+  }
+
+  function sortPptxSlidePaths(paths) {
+    const getSlideNum = (p) => {
+      const m = p.match(/(\d+)\.xml$/i);
+      return m ? parseInt(m[1], 10) : 0;
+    };
+    return [...paths].sort((a, b) => getSlideNum(a) - getSlideNum(b));
+  }
+
+  assert.equal(detectDocumentType({ name: 'lecture.pdf', type: 'application/pdf' }), 'pdf');
+  assert.equal(detectDocumentType({ name: 'syllabus.DOCX', type: '' }), 'docx');
+  assert.equal(detectDocumentType({ name: 'slides.pptx', type: '' }), 'pptx');
+  assert.equal(detectDocumentType({ name: 'whiteboard.png', type: 'image/png' }), 'image');
+  assert.equal(detectDocumentType({ name: 'notes.md', type: '' }), 'text');
+  assert.equal(detectDocumentType({ name: 'archive.zip', type: 'application/zip' }), 'unsupported');
+
+  const sorted = sortPptxSlidePaths([
+    'ppt/slides/slide10.xml',
+    'ppt/slides/slide2.xml',
+    'ppt/slides/slide1.xml'
+  ]);
+  assert.deepEqual(sorted, [
+    'ppt/slides/slide1.xml',
+    'ppt/slides/slide2.xml',
+    'ppt/slides/slide10.xml'
+  ]);
+});
+
+test('Algorithm: OOXML paragraph extraction for DOCX and PPTX XML', () => {
+  function decodeXmlEntities(str) {
+    return str
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'");
+  }
+
+  function extractParagraphsFallback(xmlString, paragraphTag, textTag) {
+    const paraRegex = new RegExp(`<${paragraphTag}\\b[^>]*>([\\s\\S]*?)<\\/${paragraphTag}>`, 'g');
+    const textRegex = new RegExp(`<${textTag}\\b[^>]*>([\\s\\S]*?)<\\/${textTag}>`, 'g');
+    const lines = [];
+    let paraMatch;
+    while ((paraMatch = paraRegex.exec(xmlString)) !== null) {
+      const chunk = paraMatch[1];
+      let text = '';
+      let textMatch;
+      while ((textMatch = textRegex.exec(chunk)) !== null) {
+        text += decodeXmlEntities(textMatch[1]);
+      }
+      if (text.trim()) lines.push(text.trim());
+    }
+    return lines.join('\n');
+  }
+
+  const docxXml = '<w:document><w:body><w:p><w:r><w:t>Neural Networks &amp; Backprop</w:t></w:r></w:p><w:p><w:r><w:t>Gradient Descent</w:t></w:r></w:p></w:body></w:document>';
+  assert.equal(
+    extractParagraphsFallback(docxXml, 'w:p', 'w:t'),
+    'Neural Networks & Backprop\nGradient Descent'
+  );
+
+  const pptxXml = '<p:sld><a:p><a:r><a:t>Slide Title</a:t></a:r></a:p><a:p><a:r><a:t>Key Concept &lt;1&gt;</a:t></a:r></a:p></p:sld>';
+  assert.equal(
+    extractParagraphsFallback(pptxXml, 'a:p', 'a:t'),
+    'Slide Title\nKey Concept <1>'
+  );
+});
